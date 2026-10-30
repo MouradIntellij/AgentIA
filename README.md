@@ -26,6 +26,20 @@ python app_tp.py       # 3002 : agent pedagogue, une etape de TP a la fois
 
 Ouvrir <http://127.0.0.1:3000> - jamais `localhost` (IPv6 peut pointer ailleurs).
 
+## Partager sans rien installer ailleurs
+
+```bat
+partager.bat
+```
+
+Un tunnel Cloudflare **sortant** donne un lien public jetable du type
+`https://xxx.trycloudflare.com/?k=AbC123`. Pas de compte, pas de cle API, pas de port ouvert sur le
+routeur, Ollama reste en local. Le lien meurt des que la fenetre se ferme, et il change a chaque
+lancement. Options : `python partager.py 3002` (partage l'agent TP), `--sans-cle` (lien ouvert).
+
+Attention : l'etat vit en memoire, donc **tous les visiteurs partagent** le meme quiz et le meme
+`TPs/progres.csv`. Pour 30 etudiants en autonomie, il faut une session par navigateur (non fait).
+
 ## Les fichiers
 
 | Fichier | Role |
@@ -33,6 +47,7 @@ Ouvrir <http://127.0.0.1:3000> - jamais `localhost` (IPv6 peut pointer ailleurs)
 | `app_final.py` | Application complete : Cours (RAG docx/pdf), Quiz, Banque de 22 snippets, Corriger, Eval, Livre + Web |
 | `app_tp.py` | Agent pedagogue : lit `TPs/*.pdf`, affiche **une** etape, debloque la suivante au code juste |
 | `app_maths.py` | Meme moteur, dossier `cours_maths/` : sympy + matplotlib + LaTeX |
+| `partager.py` | Tunnel Cloudflare jetable : lien public + cle d'acces `?k=...`, sans compte |
 | `banque_react.py` | 22 snippets React valides (ajouter un extrait = ajouter un dict) |
 | `etape1.py` ... `etape10_ressources.py` | Les 10 etapes de construction, du cerveau seul au RAG complet |
 | `static/` | CSS Tailwind compile (9 Ko) + MathJax SVG (2 Mo) : **aucun acces Internet requis** |
@@ -48,6 +63,7 @@ Ouvrir <http://127.0.0.1:3000> - jamais `localhost` (IPv6 peut pointer ailleurs)
 - **Verification de TP** : le code colle est score sur les identifiants attendus (seuil 0.6) ;
   l'IA n'ecrit que l'indice, jamais la solution.
 - **Journal** : chaque `Verifier` s'ajoute a `TPs/progres.csv` (tableau de bord enseignant).
+- **Cle d'acces** : si `CLE_ACCES` est definie (`partager.py` le fait), toute requete sans `?k=` recoit 403.
 
 ## Ajouter de la matiere
 

@@ -60,6 +60,28 @@ Aucune page ne depend plus de cdn.tailwindcss.com : le college peut bloquer le C
     (verifie ensuite que 0 classe manque). Sinon les nouvelles classes n'auront pas de style.
     Regle : ne JAMAIS remettre un <script src='https://cdn...'> dans une page.
 
+13. LIEN PUBLIC SANS COMPTE - partager.py (tunnel Cloudflare jetable)
+    Double-clic sur partager.bat  ->  python partager.py
+      - demarre app_final.py (port 3000) avec une cle d'acces aleatoire,
+      - ouvre un tunnel SORTANT vers https://<aleatoire>.trycloudflare.com,
+      - affiche et copie le lien complet resultats\lien_public.txt du type
+        https://xxx.trycloudflare.com/?k=6hxJ5ZgS   <-- TOUJOURS donner le ?k=
+      - sans ?k= (ou mauvaise cle) -> 403 ; la 1re visite pose un cookie.
+    Options : python partager.py 3002      -> partage app_tp.py au lieu de 3000
+              python partager.py --sans-cle -> lien ouvert (deconseille en classe)
+    Arret : Ctrl+C ou fermer la fenetre = le lien public meurt. Rien a nettoyer.
+    Aucun compte Cloudflare, aucune cle API, aucun port ouvert sur le routeur :
+    le PC se connecte vers l'exterieur en 443. Ollama reste en local (11434).
+    Journal du tunnel : resultats\tunnel.log (si "pas d'URL", lire ce fichier).
+    Ecole / reseau filtre : le script essaie http2 puis quic tout seul.
+    A savoir avant de partager :
+      - l'etat vit dans la memoire du serveur : TOUS les visiteurs partagent le
+        meme quiz, le meme TP, le meme Tps\progres.csv (idee : 1 binome a la fois,
+        ou partager app_tp.py pour une demo, pas pour 30 etudiants en autonomie).
+      - le laptop doit rester allume ; le lien change a chaque lancement.
+      - outils_tunnel\cloudflared.exe (53 Mo) n'est pas versionne : partager.py
+        le retelecharge tout seul s'il manque.
+
 BATTERIE 4 TESTS (avant chaque pause) :
   - Que dit la matiere sur Tailwind ? -> Guide docx
   - Quand le cours 420-TT4-AS ? -> Lundi 08h-12h, Mourad Sehboub (jamais Dupont)
@@ -68,5 +90,9 @@ BATTERIE 4 TESTS (avant chaque pause) :
 
 PANNE EXPRESS : connection refused -> ollama serve (2e terminal) | model not found -> ollama pull
   port 3000 occupe -> Ctrl+C l'ancien serveur | accents bizarres -> set PYTHONIOENCODING=utf-8
-  Securite : rester en 127.0.0.1, jamais 0.0.0.0.
-SAUVEGARDE : Sauvegarde_Atelier_sans_venv.zip (0.9 Mo, sans .venv 817 Mo a reinstaller : pip install -r requirements.txt).
+  Securite : les apps restent en 127.0.0.1 et jamais 0.0.0.0. Pour montrer a
+  distance, ne PAS ouvrir le port : utiliser partager.py (etape 13), qui sort en 443.
+  lien public "403" -> il manque ?k=... a la fin de l'adresse (ou cookie efface).
+  lien public "DNS name does not exist" -> le tunnel vient de demarrer : attendre 30 s.
+SAUVEGARDE : Sauvegarde_Atelier_sans_venv.zip (5,8 Mo, sans .venv 817 Mo a reinstaller :
+  pip install -r requirements.txt) et Sauvegarde_Atelier_avec_exe.zip (45 Mo, avec dist\AgentReact).

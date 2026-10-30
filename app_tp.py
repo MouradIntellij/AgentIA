@@ -3,12 +3,13 @@ Lit les TP de Tps/*.pdf, n'en montre qu'UNE etape a la fois, ne debloque la
 suivante que quand le code colle passe le verificateur Python. L'IA donne des
 indices cibles, jamais la solution. Port 3002 : tourne à côté de app_final.py.
 Lancer : python app_tp.py -> http://127.0.0.1:3002"""
-import pathlib, re, json, sys, requests
+import pathlib, re, json, sys, os, requests
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MODEL = "llama3.2:latest"
 URL = "http://127.0.0.1:11434/api/chat"
 PORT = 3002
+CLE_ACCES = os.environ.get("CLE_ACCES", "").strip()  # vide = ouvert (local) ; sinon ?k=... exigee
 
 def RACINE():
     if getattr(sys, "frozen", False):
@@ -210,7 +211,22 @@ tpm();
 </script></body></html>"""
 
 class H(BaseHTTPRequestHandler):
+    def _acces_ok(self):
+        # Sans CLE_ACCES : ouvert (usage local). Avec : ?k=... ou cookie deja pose.
+        if not CLE_ACCES: return True
+        from urllib.parse import urlparse, parse_qs
+        if parse_qs(urlparse(self.path).query).get("k", [""])[0] == CLE_ACCES: return True
+        return ("acces=" + CLE_ACCES) in (self.headers.get("Cookie") or "")
+
+    def _refuse(self, json_mode=False):
+        b = (b'{"txt":"403 : cle d acces manquante."}' if json_mode else
+             "<h1>403</h1><p>Lien incomplet : ajoutez ?k=VOTRE_CLE a l'adresse.</p>".encode("utf-8"))
+        self.send_response(403)
+        self.send_header("Content-type", "application/json" if json_mode else "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+
     def do_GET(self):
+        if not self._acces_ok(): return self._refuse()
         p = self.path.split("?")[0]
         if p in ("/app.css", "/mathjax.js"):
             rel = "static/app.css" if p == "/app.css" else "static/mathjax-tex-svg.js"
@@ -223,9 +239,11 @@ class H(BaseHTTPRequestHandler):
             return
         b = PAGE.encode("utf-8")
         self.send_response(200); self.send_header("Content-type", "text/html; charset=utf-8")
+        if CLE_ACCES: self.send_header("Set-Cookie", "acces=%s; Path=/; SameSite=Lax" % CLE_ACCES)
         self.send_header("Cache-Control", "no-store"); self.send_header("Pragma", "no-cache")
         self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
     def do_POST(self):
+        if not self._acces_ok(): return self._refuse(True)
         n = int(self.headers.get("Content-Length", 0))
         d = json.loads(self.rfile.read(n).decode("utf-8"))
         a = d.get("a")

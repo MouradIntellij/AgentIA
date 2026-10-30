@@ -2,12 +2,13 @@
 Preuve d'adaptabilite : DOSSIER=cours_maths/ seul, outils derives/integrales/limites/graphe,
 interface sans boutons code, equations LaTeX (MathJax) + graphiques matplotlib.
 Lancer : python app_maths.py -> http://127.0.0.1:3001"""
-import pathlib, re, json, io, base64, sys, requests
+import pathlib, re, json, io, base64, sys, os, requests
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MODEL = "llama3.2:latest"
 URL = "http://127.0.0.1:11434/api/chat"
 PORT = 3001
+CLE_ACCES = os.environ.get("CLE_ACCES", "").strip()  # vide = ouvert (local) ; sinon ?k=... exigee
 DOSSIER = pathlib.Path("cours_maths")
 SYSTEM = ("Tu es tuteur de calcul differentiel. Tu reponds UNIQUEMENT d'apres le resultat "
           "de l'outil lire_maths. Cite la SOURCE. Les calculs fournis sont deja verifies, recopie-les tels quels.")
@@ -140,7 +141,22 @@ function showsrc(j){src.innerHTML=(j.sources&&j.sources.length)?'<b>Sources (cou
 </script></body></html>"""
 
 class H(BaseHTTPRequestHandler):
+    def _acces_ok(self):
+        # Sans CLE_ACCES : ouvert (usage local). Avec : ?k=... ou cookie deja pose.
+        if not CLE_ACCES: return True
+        from urllib.parse import urlparse, parse_qs
+        if parse_qs(urlparse(self.path).query).get("k", [""])[0] == CLE_ACCES: return True
+        return ("acces=" + CLE_ACCES) in (self.headers.get("Cookie") or "")
+
+    def _refuse(self, json_mode=False):
+        b = (b'{"txt":"403 : cle d acces manquante."}' if json_mode else
+             "<h1>403</h1><p>Lien incomplet : ajoutez ?k=VOTRE_CLE a l'adresse.</p>".encode("utf-8"))
+        self.send_response(403)
+        self.send_header("Content-type", "application/json" if json_mode else "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+
     def do_GET(self):
+        if not self._acces_ok(): return self._refuse()
         p = self.path.split("?")[0]
         if p in ("/app.css", "/mathjax.js"):
             rel = "static/app.css" if p == "/app.css" else "static/mathjax-tex-svg.js"
@@ -154,9 +170,11 @@ class H(BaseHTTPRequestHandler):
             return
         b = PAGE.encode("utf-8")
         self.send_response(200); self.send_header("Content-type", "text/html; charset=utf-8")
+        if CLE_ACCES: self.send_header("Set-Cookie", "acces=%s; Path=/; SameSite=Lax" % CLE_ACCES)
         self.send_header("Cache-Control", "no-store"); self.send_header("Pragma", "no-cache")
         self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
     def do_POST(self):
+        if not self._acces_ok(): return self._refuse(True)
         import sympy  # noqa: precharge verifiee
         n = int(self.headers.get("Content-Length", 0))
         d = json.loads(self.rfile.read(n).decode("utf-8"))
