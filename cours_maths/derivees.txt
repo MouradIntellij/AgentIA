@@ -1,0 +1,16 @@
+CALCUL DIFFERENTIEL - Matiere (extraits pour l'agent)
+Source : dossier du prof, chapitre derivees.
+
+DEFINITION : La derivee de f en a est la limite du taux d'accroissement :
+f'(a) = limite quand h->0 de (f(a+h)-f(a))/h. Elle donne la pente de la tangente.
+
+REGLES :
+- Derivee de x^n : n*x^(n-1). Exemple : (x^3)' = 3x^2.
+- Derivee de sin(x) : cos(x). Derivee de cos(x) : -sin(x).
+- Derivee de ln(u) : u'/u. Exemple : ln(x+1) a pour derivee 1/(x+1).
+- (u+v)' = u'+v'. (u*v)' = u'v+uv'. (u/v)' = (u'v-uv')/v^2.
+- Derivee de e^x : e^x.
+
+INTEGRALES : Une primitive de x^n (n different de -1) est x^(n+1)/(n+1) + C.
+LIMITES : limite en 0 de sin(x)/x = 1. En cas de forme indeterminee 0/0, regle de l'Hopital.
+GRAPHE : Une fonction croissante a une derivee positive ; un extremum annule la derivee.

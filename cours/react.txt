@@ -1,0 +1,11 @@
+COURS REACT - TechWeek LaSalle
+
+1. useState : garde une valeur qui fait re-afficher le composant.
+Exemple impose : const [count, setCount] = useState(0);
+Regle examen : on ne modifie jamais count directement, on appelle setCount(count+1).
+
+2. useEffect : execute du code apres affichage. Ex: useEffect(()=>{document.title = count}, [count]).
+
+3. Props : donnees du parent vers enfant. Ex: <Bouton titre="Valider" />.
+
+4. Composant : fonction qui retourne du JSX. Toujours majuscule : function Carte(){return <div/>}

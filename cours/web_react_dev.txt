@@ -1,0 +1,7 @@
+TITRE : React officiel - react.dev
+URL : https://react.dev
+EXTRAIT COURS : useState garde une valeur : const [count, setCount] = useState(0). useEffect apres affichage. Props parent->enfant.
+
+TITRE : React GitHub
+URL : https://github.com/reactjs/react.dev
+EXTRAIT COURS : The documentation is divided into several sections with a different tone and purpose. If you plan to write more than a few sentences, you might find it helpful to get familiar with the contributing guidelines for the appropriate sections.

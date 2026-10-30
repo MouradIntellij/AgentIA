@@ -1,0 +1,4 @@
+Deposez ici vos PDF (livres, notes de cours) : ils sont lus automatiquement
+par le RAG du mode "Livre + Web" d'app_final.py.
+
+Ce dossier n'est pas versionne : mettez-y vos livres sans les publier sur GitHub.

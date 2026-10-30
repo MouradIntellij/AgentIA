@@ -1,0 +1,5 @@
+requests
+pypdf
+transformers
+# torch volontairement ABSENT (option 9B seulement) :
+# pip install torch --index-url https://download.pytorch.org/whl/cpu

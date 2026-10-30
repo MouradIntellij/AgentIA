@@ -1,0 +1,13 @@
+NAME                       ID              SIZE      MODIFIED     
+llama3.2:latest            a80c4f17acd5    2.0 GB    13 hours ago    
+llava:7b                   8dd30f6b0cb1    4.7 GB    8 weeks ago     
+gpt-oss:20b                17052f91a42e    13 GB     8 weeks ago     
+qwen2.5:latest             845dbda0ea48    4.7 GB    8 weeks ago     
+nomic-embed-text:latest    0a109f422b47    274 MB    2 months ago    
+Gemma:latest               a72c7f4d0a15    5.0 GB    5 months ago    
+qwen2.5-coder:1.5b-base    02e0f2817a89    986 MB    6 months ago    
+gpt-oss:20b-cloud          875e8e3a629a    -         7 months ago    
+deepseek-coder:6.7b        ce298d984115    3.8 GB    7 months ago    
+gpt-oss:120b-cloud         569662207105    -         7 months ago    
+codellama:latest           8fdf8f752f6e    3.8 GB    7 months ago    
+gemma3:27b                 a418f5838eaf    17 GB     7 months ago    

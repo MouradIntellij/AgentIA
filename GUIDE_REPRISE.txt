@@ -1,0 +1,72 @@
+REPRISE ATELIER DEMAIN - pas a pas (2h, wifi au college)
+Dossier : mon_agent_react/  |  Moteur : Ollama llama3.2  |  URL : http://127.0.0.1:11434
+IMPORTANT : les 3 interfaces sont 100% OFFLINE (CSS + MathJax servis en local depuis static/).
+Aucune page ne depend plus de cdn.tailwindcss.com : le college peut bloquer le CDN, ca marche quand meme.
+
+0. REDEMARRAGE (5 min)
+   ollama list                 -> doit afficher llama3.2:latest (sinon ollama pull llama3.2:latest)
+   cd mon_agent_react
+   python -c "import requests, pypdf, transformers; print('libs OK')"
+   Test offline : couper le wifi, lancer app_final.py -> la page DOIT etre styled.
+   (Ne JAMAIS relancer ollama serve s'il tourne deja : erreur bind = normal.)
+
+1. CERVEAU SEUL - etape1.py
+   python etape1.py -> question useState. Phrase : "cerveau sans bras".
+
+2. MATIERE LOCALE - etape2.py (+garde hors-matiere)
+   python etape2.py -> useState OK / useReducer = Hors-matiere.
+
+3. TOOL-CALLING - etape3.py
+   python etape3.py -> voir [outil] lire_cours().
+
+4. HALLUCINATION + GARDE - (useReducer invente -> garde Python)
+   Phrase : "Prompt = politesse, Code = police."
+
+5. QUIZ - etape5_web.py puis etape6_web.py (corriger_code)
+   python etape5_web.py -> http://127.0.0.1:3000 -> Quiz + Corriger.
+
+6. BANQUE 22 SNIPPETS - banque_react.py
+   "donne le code usereducer / fetch / formulaire". Ajout = 1 ligne.
+
+7. DOCX + PDF + USB - etape6_web_doc.py
+   cours/ : 2 docx + 1 pdf + web_react_dev.txt. requirements.txt, demarrer-agent.bat, installer.bat.
+
+8. HYBRIDE + RAG + PREUVES - app_final.py (BUILD v8, TP sorti vers app_tp.py)
+   Python tranche, IA explique. Pastilles "Sources consultees".
+   Intent : definition -> RAG ; "donne le code X" -> banque ; dates -> Python exact.
+   Bouton Reset entre binomes.
+
+9. TOKENS + SENTIMENT + EVAL
+   python etape9_tokens.py (13 tokens useState...) / etape9b_sentiment.py (optionnel, torch CPU)
+   python etape9c_eval.py -> [IA auteur] si Ollama allumé, [Python seul] sinon.
+
+10. RESSOURCES + LIVRE/WEB - etape10_ressources.py
+    cours/livres/*.pdf lus par RAG (rglob). Web vivant -> cache cours/cache_web/.
+    Preuve : pastilles SOURCE WEB (live)/(cache).
+
+11. AGENT PEDAGOGUE TP - app_tp.py (port 3002, Tps/*.pdf, BUILD v4)
+    Plan A-E extrait du PDF (cache Tps/plan_tp.json, editable). 1 etape a la fois,
+    deblocage au code juste (seuil 0.6), indices IA sans solution. Reset -> etape A.
+    A l'ouverture : fiche de l'etape en cours (but + A1..A7 + squelettes + controle).
+    Fiches cachees dans Tps/fiche_<A-E>.json : le prof peut les reecrire a la main.
+    Demos controle : Attaque injection (garde 0 LLM), IA seule vs controlee,
+    Tableau enseignant (Tps/progres.csv). Avant chaque test : tuer les python.exe
+    fantomes, verifier BUILD en console.
+
+12. CSS / MATHS OFFLINE (static/)
+    static/app.css      = Tailwind compile (9 Ko) servi sur /app.css par les 3 apps.
+    static/mathjax-tex-svg.js = MathJax 3.2.2 SVG (2 Mo), rend les $$...$$ sans internet.
+    Ajout de classes Tailwind dans app_*.py -> outils_tailwind\reconstruire_css.bat
+    (verifie ensuite que 0 classe manque). Sinon les nouvelles classes n'auront pas de style.
+    Regle : ne JAMAIS remettre un <script src='https://cdn...'> dans une page.
+
+BATTERIE 4 TESTS (avant chaque pause) :
+  - Que dit la matiere sur Tailwind ? -> Guide docx
+  - Quand le cours 420-TT4-AS ? -> Lundi 08h-12h, Mourad Sehboub (jamais Dupont)
+  - Explique useReducer ? -> Hors-matiere si pas dans docs, snippet si "donne le code usereducer"
+  - Collez function carte(){count=...} -> 2 erreurs + explication IA
+
+PANNE EXPRESS : connection refused -> ollama serve (2e terminal) | model not found -> ollama pull
+  port 3000 occupe -> Ctrl+C l'ancien serveur | accents bizarres -> set PYTHONIOENCODING=utf-8
+  Securite : rester en 127.0.0.1, jamais 0.0.0.0.
+SAUVEGARDE : Sauvegarde_Atelier_sans_venv.zip (0.9 Mo, sans .venv 817 Mo a reinstaller : pip install -r requirements.txt).

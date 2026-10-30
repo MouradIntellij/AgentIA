@@ -1,0 +1,25 @@
+# Environnement Python local (817 Mo) : a recreer avec requirements.txt
+.venv/
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+
+# Artefacts de build : regenerables avec build_exe.bat (84 Mo, change a chaque rebuild)
+build/
+dist/
+build.zip
+
+# Archives de sauvegarde : livrables pour cle USB, pas pour le depot
+*.zip
+
+# Etat local des essais (le tableau enseignant se remplit a l'usage)
+TPs/progres.csv
+
+# Livres du prof : restent en local (droits d'auteur)
+cours/livres/*.pdf
+
+# Divers
+*.log
+.DS_Store
