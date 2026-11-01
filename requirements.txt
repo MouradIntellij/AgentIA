@@ -1,5 +1,7 @@
 requests
 pypdf
 transformers
+# transformers 5.x exige huggingface-hub < 2 : sans ce verrou, l'etape 9 plante.
+huggingface-hub<2
 # torch volontairement ABSENT (option 9B seulement) :
 # pip install torch --index-url https://download.pytorch.org/whl/cpu

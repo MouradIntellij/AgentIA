@@ -220,7 +220,7 @@ def corriger_code(code):
     try:
         r = requests.post(URL, json={"model": MODEL, "messages": [
             {"role": "system", "content": "Tuteur bienveillant. Explique UNIQUEMENT les FAITS, 3 lignes max. Si OK, felicite 1 ligne."},
-            {"role": "user", "content": f"CODE:\n{code[:2000]}\n\nFAITS:\n{txt[:2000]}"}], "stream": False, "options": {"temperature": 0.2}}, timeout=90)
+            {"role": "user", "content": f"CODE:\n{code[:2000]}\n\nFAITS:\n{txt[:2000]}"}], "stream": False, "options": {"temperature": 0.2, "num_ctx": 8192}}, timeout=90)
         txt += "\n\nEXPLICATION IA :\n" + r.json()["message"]["content"]
     except Exception as e:
         txt += f"\n\nIA indisponible ({e})."
@@ -238,7 +238,7 @@ def run_agent_cours(q):
     except Exception: pass
     r = requests.post(URL, json={"model": MODEL, "messages": [
         {"role": "system", "content": SYSTEM}, {"role": "user", "content": q}],
-        "stream": False, "tools": OUTIL, "options": {"temperature": 0.0}}, timeout=120).json()["message"]
+        "stream": False, "tools": OUTIL, "options": {"temperature": 0.0, "num_ctx": 8192}}, timeout=120).json()["message"]
     for c in (r.get("tool_calls") or []):
         if c["function"]["name"] == "corriger_code":
             arg = c["function"].get("arguments", {})
@@ -255,7 +255,7 @@ def run_agent_cours(q):
                 {"role": "system", "content": SYSTEM}, {"role": "user", "content": q},
                 {"role": "assistant", "content": "", "tool_calls": r["tool_calls"]},
                 {"role": "tool", "content": ctx[:8000]}],
-                "stream": False, "options": {"temperature": 0.0}}, timeout=120).json()["message"]
+                "stream": False, "options": {"temperature": 0.0, "num_ctx": 8192}}, timeout=120).json()["message"]
             srcs = extraire_sources(ctx)
             return {"type": "cours", "txt": "[outil] lire_cours() [RAG+WEB]\n" + (r2.get("content") or ""), "sources": srcs or ["aucune (reponse memoire LLM - mefiance)"]}
     return {"type": "cours", "txt": r.get("content") or ""}
