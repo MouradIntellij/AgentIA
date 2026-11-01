@@ -813,7 +813,7 @@ def chapitre_objection(doc):
               "de code. Il peut seulement être utilisé pour discuter.")
 
     h2(doc, "La démonstration en quatre-vingt-dix secondes")
-    para(doc, "C'est la batteries de questions à faire devant la classe, dans cet ordre. Elle est déjà "
+    para(doc, "C'est la batterie de questions à faire devant la classe, dans cet ordre. Elle est déjà "
               "scriptée dans etape8.py --demo ; vous pouvez aussi la jouer dans app_final.py.")
     tableau(doc,
             ["Question", "Chemin", "LLM", "Preuve affichée", "Ce que ça prouve"],
