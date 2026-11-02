@@ -102,7 +102,7 @@ def mode_emploi(doc):
             [["Python", "3.10 ou plus", "Exécute l'agent, le serveur, les outils", "python.org (cocher Add to PATH)"],
              ["Ollama", "application de bureau", "Fait tourner le modèle en local", "ollama.com/download"],
              ["llama3.2", "2 Go, version latest", "Le modèle de langage de tout l'atelier", "ollama pull llama3.2:latest"],
-             ["mon_agent_react", "le dossier de l'atelier", "Contient les 13 scripts, cours/, Tps/, static/", "votre clé USB ou le dépôt"],
+             ["mon_agent_react", "le dossier de l'atelier", "Contient les scripts, cours/, Tps/, static/", "votre clé USB ou le dépôt"],
              ["Bibliothèques", "requests, pypdf, transformers", "Réseau local, lecture PDF, tokens", "installer.bat"]],
             [2.8, 4.0, 5.4, 4.4])
 
@@ -134,7 +134,7 @@ def chapitre_pitch(doc):
     tableau(doc,
             ["Pièce", "Qui la tient", "Ce qu'elle empêche"],
             [["**La garde**", "Python, avant le modèle", "Répondre à une question absente du cours (0 appel, 0 invention)."],
-             ["**Le tri (RAG)**", "Python, entre les documents et le modèle", "Envoyer 24 000 caractères au modèle et noyer la vraie réponse."],
+             ["**Le tri (RAG)**", "Python, entre les documents et le modèle", "Envoyer tout le cours — ou tout un livre — au modèle et noyer la vraie réponse."],
              ["**Les pastilles de source**", "Python, après la lecture", "Dire « selon le cours » sans fichier derrière."],
              ["**La rédaction**", "Le modèle", "Rien : il reformule ce que Python lui a apporté. C'est le seul rôle qui reste."]],
             [3.6, 5.4, 7.6])
@@ -179,9 +179,9 @@ def chapitre_carte(doc):
              ["5", "Le contrôle", "etape5_web.py", "Quiz corrigé par Python", "Il peut interroger sans inventer", "10"],
              ["6", "La bibliothèque de code", "etape6_web.py", "22 snippets + correcteur", "Il donne du code validé et explique les fautes", "12"],
              ["7", "La mémoire documentaire", "etape6_web_doc.py", "Lecture DOCX/PDF réelle", "Il lit vos vrais documents", "10"],
-             ["8", "Le tri et la preuve", "etape8.py", "Routage Python + RAG + pastilles", "Il montre pourquoi il répond", "13"],
-             ["9", "La mesure", "etape9_tokens.py, etape9c_eval.py", "Tokens et évaluation verrouillée", "On comprend ses limites, on mesure", "8"],
-             ["10", "L'ouverture", "etape10_ressources.py", "Livre + sites + cache", "Il cite un livre et la doc officielle", "7"]],
+             ["8", "Le tri et la preuve", "etape8.py", "Routage Python + RAG + pastilles", "Il montre pourquoi il répond", "15"],
+             ["9", "La mesure", "etape9_tokens.py, etape9c_eval.py", "Tokens et évaluation verrouillée", "On comprend ses limites, on mesure", "7"],
+             ["10", "L'ouverture", "etape10_ressources.py", "Livre entier indexé + sites + cache", "Il cite une page de livre et la doc officielle", "6"]],
             [0.8, 3.5, 4.2, 4.2, 5.4, 1.0], taille=8.3)
 
     h2(doc, "La règle des trois couches")
@@ -199,8 +199,8 @@ def chapitre_carte(doc):
     h2(doc, "Le chemin complet, en une ligne")
     bloc(doc, "De la question à la preuve",
          "question → Python choisit le chemin → (banque | calendrier | garde | RAG)\n"
-         "         → si RAG : lecture de cours/ → tri des passages → modèle rédige\n"
-         "         → Python extrait les sources → l'utilisateur voit la réponse ET la preuve",
+         "         → si RAG : notes de cours/ + index du livre → tri des passages → modèle rédige\n"
+         "         → Python extrait les sources (fichier, page) → réponse + preuve",
          BLEU, BLEU_CLAIR, 9)
 
     encadre(doc, "Le point de bascule",
@@ -286,14 +286,23 @@ def chapitre_avant(doc):
          "-> « Que dit la matiere sur Tailwind ? »      (attend : une reponse + pastille .docx)\n"
          "-> « Quand le cours 420-TT4-AS ? »           (attend : lundi 08h-12h, Mourad Sehboub)\n"
          "-> « donne le code usereducer »              (attend : snippet de la banque)\n"
-         "-> « Explique useReducer ? »                 (attend : Hors-matiere)",
+         "-> « Explique useReducer ? »                 (attend : une reponse + pastille .docx)",
          BLEU, BLEU_CLAIR, 8.8)
 
     h2(doc, "Le plan B, dès maintenant")
     encadre(doc, "Si une étape casse pendant la séance",
-            "Ne réparez pas devant le groupe. Basculez sur app_final.py (l'agent complet, BUILD v9) et "
+            "Ne réparez pas devant le groupe. Basculez sur app_final.py (l'agent complet, BUILD v10) et "
             "rejouez les démonstrations de la section « Les démonstrations de contrôle ». L'atelier survit "
             "à une étape ratée ; il ne survit pas à dix minutes de débogage silencieux.", ROUGE, ROUGE_CLAIR, 10)
+
+    h2(doc, "Si le test express échoue, où aller")
+    tableau(doc,
+            ["Ce que vous voyez", "Cause probable", "Où regarder"],
+            [["Le moteur ne répond pas", "Ollama est arrêté ou occupé", "Dépannage : « Connection refused »"],
+             ["Aucune pastille sous la réponse", "Le fichier n'est pas reconnu comme une source", "Vérifier son nom et son extension dans cours/"],
+             ["Le calendrier donne une autre date", "Le PDF ou le DOCX du calendrier manque", "Le remettre dans cours/, relancer"],
+             ["Le snippet n'apparaît pas", "La clé n'existe pas dans banque_react.py", "Poser la question « donne le code … » avec le bon nom"]],
+            [6.0, 5.6, 5.0], taille=8.6)
 
 
 # ================================================================== GABARIT D'ÉTAPE
@@ -524,7 +533,8 @@ def etapes_1_5(doc):
           "etape6_web_doc.py", "10 min", "Navigateur", "Réponse + nom du fichier",
           "Passer du .txt écrit à la main aux documents réels : le plan de cours, le calendrier, le guide "
           "React, les tendances technologiques. C'est le moment où l'agent devient le vôtre. Le RAG naît ici, "
-          "par nécessité : quatre documents font 24 000 caractères, trop pour être envoyés à chaque question.",
+          "par nécessité : quatre documents font près de 20 000 caractères, trop pour être envoyés à chaque "
+          "question — et un livre entier ne rentre pas du tout.",
           ["Déposer un DOCX ou un PDF dans cours/ (le calendrier y est déjà).",
            "Relancer le script et poser une question sur un passage précis du document.",
            "Vérifier que la réponse cite le nom du fichier entre crochets.",
@@ -543,28 +553,31 @@ def etapes_1_5(doc):
           "Il lit aussi les PDF, ce qui permet d'utiliser le calendrier officiel et le TP. Et il sait dire "
           "« ce PDF est une image, je ne peux pas le lire » : une limite avouée vaut mieux qu'une réponse inventée.",
           "Un agent qui parle de votre cours, avec vos mots et vos dates.",
-          "Le tri et la preuve : parmi 24 000 caractères, quels passages envoyer, et comment le prouver.",
+          "Le tri et la preuve : parmi 20 000 caractères — et bientôt des centaines de pages — quels passages "
+          "envoyer, et comment le prouver.",
           "Un PDF scanné est une image : sans OCR, il ne contient pas de texte. Un .doc renommé en .docx ne "
-          "s'ouvre pas. Le corpus est coupé à 24 000 caractères : au-delà, les derniers documents disparaissent "
-          "silencieusement.",
+          "s'ouvre pas. Les notes de cours sont plafonnées : au-delà de 20 000 caractères, un PDF est indexé "
+          "page par page au lieu d'être copié en entier (c'est l'objet de l'étape 8).",
           "« D'où vient la réponse ? » Réponse attendue : du fichier cité, pas de la mémoire du modèle.",
           "Si un document n'apparaît jamais, vérifier son extension réelle et sa taille ; réduire le corpus à l'essentiel.")
 
     # ---------------------------------------------------------------- 8
     etape(doc, 8, "Le tri et la preuve", "Python choisit le chemin, le modèle rédige, la source s'affiche",
-          "etape8.py", "13 min", "Console", "5 questions, 1 seul appel LLM",
+          "etape8.py", "15 min", "Console", "5 questions, 4 chemins, 2 appels LLM",
           "Assembler les pièces. Avant d'appeler le modèle, Python classe la question : demande de code, "
           "date, hors-sujet, ou question documentaire. Puis il ne lui donne que les passages utiles. Enfin, "
           "il extrait les sources du texte qu'il a réellement envoyé — ce ne sont pas des remerciements, "
-          "ce sont des preuves.",
-          ["Lancer la démonstration : cinq questions, cinq chemins différents.",
-           "Compter les appels au modèle : un seul sur les cinq.",
+          "ce sont des preuves. Et si un livre volumineux est présent, Python l'a indexé page par page : "
+          "la réponse peut citer « p.42 », pas seulement « le livre ».",
+          ["Lancer la démonstration : cinq questions, quatre chemins différents (six questions et un "
+           "chemin de plus si un livre est indexé).",
+           "Compter les appels au modèle : deux sur cinq.",
            "Montrer les pastilles de source, et le mode dégradé quand Ollama est absent.",
            "Relancer en interactif et laisser un étudiant poser sa question."],
           "python etape8.py --demo\n"
           "python etape8.py",
-          "etape8 v1 - hybride + RAG + preuves\n"
-          "Matiere chargee : 19278 caracteres depuis cours/  |  Ollama : OK\n"
+          "etape8 v2 - hybride + RAG + livre indexe + preuves\n"
+          "Matiere chargee : 19824 caracteres depuis cours/  |  Ollama : OK\n"
           "\n"
           "QUESTION : Que dit la matiere sur Tailwind ?\n"
           "[outil] lire_cours() / tri Python | chemin : RAG (Python trie, LLM redige) | 1 appel(s) LLM\n"
@@ -579,8 +592,8 @@ def etapes_1_5(doc):
           "Sources consultees (preuve Python) : [TendancesTechnologiques_420-TT4-AS.docx]  [Tendances...Calendrier...pdf]\n"
           "\n"
           "QUESTION : Explique useReducer ?\n"
-          "chemin : GARDE (Python seul) | 0 appel(s) LLM\n"
-          "Hors-matiere - voir manuel. Aucun mot de la question n'apparait dans cours/.\n"
+          "[outil] lire_cours() / tri Python | chemin : RAG (Python trie, LLM redige) | 1 appel(s) LLM\n"
+          "useReducer centralise les transitions d'etat complexes... [SOURCE ...docx]\n"
           "\n"
           "QUESTION : donne le code usereducer\n"
           "chemin : BANQUE (Python seul) | 0 appel(s) LLM\n"
@@ -590,24 +603,65 @@ def etapes_1_5(doc):
           "chemin : GARDE (Python seul) | 0 appel(s) LLM\n"
           "Hors-matiere - voir manuel.",
           "C'est le cœur de l'exploit, et il tient en cinq observations. 1) Le chemin est décidé par du code, "
-          "donc il est prévisible et explicable. 2) Quatre questions sur cinq ne coûtent aucun appel au modèle : "
+          "donc il est prévisible et explicable. 2) Trois questions sur cinq ne coûtent aucun appel au modèle : "
           "elles sont instantanées et gratuites. 3) Les sources sont extraites du texte envoyé, pas déclarées "
           "par le modèle : une preuve, pas une politesse. 4) Le RAG n'envoie que 3 500 caractères au lieu de "
-          "24 000 : la fenêtre de contexte est respectée. 5) Ollama éteint, l'agent ne mens pas : il montre les "
-          "passages et annonce le mode dégradé.",
-          "Le produit complet : app_final.py n'est que cette étape, avec l'interface et tous les modes (BUILD v9).",
+          "20 000 : la fenêtre de contexte est respectée — et cela restera vrai avec un livre de 500 pages. "
+          "5) Ollama éteint, l'agent ne ment pas : il montre les passages et annonce le mode dégradé.",
+          "Le produit complet : app_final.py n'est que cette étape, avec l'interface et tous les modes (BUILD v10).",
           "La mesure : pourquoi 3 500 caractères et pas tout le cours (tokens), et comment évaluer sans tricher.",
-          "La garde est volontairement grossière : « Explique useReducer » est refusé même si le modèle sait. "
-          "C'est le contrat. Le tri par mots-clés peut choisir de mauvais passages sur une question abstraite : "
-          "on améliore en ajoutant des documents, jamais en supprimant la preuve. Et on n'envoie jamais tout "
-          "le corpus : 24 000 caractères, c'est déjà les trois quarts de la fenêtre du modèle.",
-          "« Combien de fois le modèle a-t-il été appelé pour cinq questions ? » Réponse attendue : une. "
+          "La garde est volontairement grossière : elle accepte dès qu'un mot important existe dans les "
+          "documents ou dans le livre, même si la réponse exacte n'y est pas. Le tri par mots-clés peut "
+          "choisir de mauvais passages sur une question abstraite : on améliore en ajoutant des documents, "
+          "jamais en supprimant la preuve. Et on n'envoie jamais tout le corpus : même indexé, un livre de "
+          "300 pages ne pèse que quatre ou cinq pages dans le contexte.",
+          "« Combien de fois le modèle a-t-il été appelé pour cinq questions ? » Réponse attendue : deux. "
           "« Qui a produit les pastilles ? » Python, à partir du texte lu.",
           "etape8.py est une démonstration, pas le produit : si elle échoue, lancez app_final.py, qui contient la même logique.")
 
+    h2(doc, "Le livre entier, page par page : l'index BM25")
+    para(doc, "Un manuel React de 300 pages pèse environ 500 000 caractères, soit seize fois la fenêtre de "
+              "8 192 tokens (≈ 30 000 caractères). On ne peut donc ni l'envoyer en entier, ni le couper aux "
+              "6 000 premiers caractères : l'agent ne connaîtrait que la préface. La solution tient dans un "
+              "fichier, index_livre.py, et en quatre gestes.")
+    puces(doc, [
+        ("Extraire", "pypdf lit le PDF page par page ; chaque morceau garde son numéro de page d'origine."),
+        ("Découper", "morceaux d'environ 900 caractères, avec 150 caractères de recouvrement pour ne pas couper une idée en deux."),
+        ("Noter", "BM25, un score classique qui récompense les mots rares de la question et pénalise les morceaux trop longs."),
+        ("Envoyer", "seuls les quatre ou cinq meilleurs morceaux partent au modèle, chacun précédé de [=== SOURCE: React_livre p.42 ===]."),
+    ])
+    bloc(doc, "Ce que la console affiche (exemple avec un livre de 312 pages)",
+         "Livre indexe : React_livre (312 pages) -> 1187 morceaux, recherche BM25 par page\n"
+         "(le premier lancement extrait le PDF ; les suivants lisent le cache JSON)\n"
+         "\n"
+         "QUESTION : Que dit le livre sur useReducer et les etats complexes ?\n"
+         "[outil] lire_cours() / tri Python | chemin : RAG (Python trie, LLM redige) | 1 appel(s) LLM\n"
+         "Le livre presente useReducer comme le hook des transitions complexes...\n"
+         "Sources consultees (preuve Python) : [React_livre p.42]  [React_livre p.43]",
+         BLEU, BLEU_CLAIR, 8.8)
+    para(doc, "Le modèle voit environ 2 000 caractères, comme avant. Mais la bibliothèque peut faire "
+              "500 pages, et chaque citation porte un numéro vérifiable : on ouvre le livre à la page 42, "
+              "et le passage y est. C'est la différence entre « le livre dit que » et une preuve.")
+    tableau(doc,
+            ["Situation", "Ce qui part au modèle", "Ce que l'utilisateur voit"],
+            [["Question sur une notion du livre", "4 ou 5 pages, ~1 800 caractères", "La réponse + la pastille p.42"],
+             ["Question sur une notion du cours", "Les notes de cours (~1 700 caractères)", "La réponse + le nom du .docx"],
+             ["Question absente du cours et du livre", "rien : la garde refuse avant le modèle", "« Hors-matière », 0 appel, 0 invention"],
+             ["Deuxième lancement", "le même index, relu depuis le cache JSON", "démarrage en quelques millisecondes"]],
+            [6.0, 5.4, 5.2], taille=8.6)
+    encadre(doc, "Pourquoi BM25 et pas des embeddings",
+            "Une recherche par embeddings serait plus sémantique, mais elle ajoute un modèle à télécharger, "
+            "du temps CPU et une dépendance de plus. BM25 tient en quelques dizaines de lignes de Python pur, "
+            "s'indexe en une seconde et reste prévisible : en atelier, la preuve d'abord. Sa limite est "
+            "réelle : si la question n'emploie aucun mot du livre, la bonne page peut être manquée. On "
+            "reformule avec les mots du livre — ou on ajoute un chapitre.", AMBRE, AMBRE_CLAIR, 9.8)
+    para(doc, "L'index ne change pas le contrat : il rend le livre citable. Le modèle ne reçoit jamais le "
+              "PDF, seulement quatre pages, et Python affiche la page exacte. C'est le même principe que "
+              "depuis l'étape 2, appliqué à une échelle plus grande.")
+
     # ---------------------------------------------------------------- 9
     etape(doc, 9, "La mesure", "Pourquoi on ne peut pas tout donner, et comment évaluer sans tricher",
-          "etape9_tokens.py, etape9c_eval.py", "8 min", "Console", "Tokens + score CSV",
+          "etape9_tokens.py, etape9c_eval.py", "7 min", "Console", "Tokens + score CSV",
           "Comprendre la contrainte qui justifie tout le reste. Un modèle ne voit pas des caractères, il voit "
           "des tokens ; sa fenêtre est finie. Et mesurer ce que les étudiants ont compris avec un QCM dont "
           "les bonnes réponses sont verrouillées par Python.",
@@ -653,13 +707,16 @@ def etapes_1_5(doc):
           "Pas de wifi pour le tokenizer → l'étape 9 est optionnelle, passez à la 10.")
 
     # ---------------------------------------------------------------- 10
-    etape(doc, 10, "L'ouverture", "Un livre, des sites officiels, et un cache pour le hors-ligne",
-          "etape10_ressources.py", "7 min", "Console", "Liste livre + sites",
+    etape(doc, 10, "L'ouverture", "Un livre entier, des sites officiels, et un cache pour le hors-ligne",
+          "etape10_ressources.py", "6 min", "Console", "Liste livre + sites",
           "Élargir la bibliothèque sans casser le contrat. Un PDF légal dans cours/livres/, des sites de "
           "référence, et un cache local : la première visite télécharge, les suivantes lisent le cache. "
-          "La preuve indique (live) ou (cache).",
+          "Et si le PDF est volumineux, il est indexé page par page (BM25) : le livre entier devient "
+          "interrogeable, seules les pages utiles partent au modèle, et la preuve porte un numéro de page.",
           ["Lancer le script et lire la liste : livre attendu, chapitres reliés à la banque, sites.",
            "Déposer votre PDF légal dans cours/livres/, relancer, vérifier qu'il est détecté.",
+           "Lancer app_final.py : la console annonce « Livre indexe : N pages -> M morceaux ».",
+           "Poser une question sur une notion précise et vérifier la pastille « p.N ».",
            "Dans app_final.py, poser une question sur react.dev et observer la pastille (live) puis (cache).",
            "Rappeler la règle : aucun PDF pirate dans l'atelier."],
           "python etape10_ressources.py",
@@ -667,20 +724,26 @@ def etapes_1_5(doc):
           "\n"
           "LIVRE : React - Apprendre pas a pas (dossier du prof)\n"
           "Fichier attendu : cours/livres/React_livre.pdf\n"
-          "PDF presents : (aucun - ajoutez-en un)\n"
+          "PDF presents : React_livre.pdf\n"
           "\n"
           "SITES POPULAIRES :\n"
           "  - React officiel - react.dev : https://react.dev",
-          "L'agent peut désormais citer un livre et la documentation officielle, pas seulement vos notes. "
-          "Le cache est ce qui rend la démonstration reproductible : si le wifi du collège tombe, ou si le "
-          "CDN est bloqué, l'agent répond quand même avec ce qu'il a déjà lu.",
-          "Une bibliothèque extensible, avec une trace (live) ou (cache) pour chaque source web.",
+          "L'agent peut désormais citer une page précise d'un livre et la documentation officielle, pas "
+          "seulement vos notes. Un manuel de 300 pages ne rentre pas dans la fenêtre du modèle : il est "
+          "indexé, et seules quatre ou cinq pages sont envoyées. Le cache, lui, rend la démonstration "
+          "reproductible : si le wifi du collège tombe, ou si le CDN est bloqué, l'agent répond quand même "
+          "avec ce qu'il a déjà lu.",
+          "Une bibliothèque extensible : un livre entier, des sources web, et une trace (live) ou (cache) "
+          "pour chacune.",
           "Les extensions : le même principe appliqué aux TP (app_tp.py), puis au partage et à l'exécutable.",
-          "Un PDF scanné ne passe pas. Le cache ne se rafraîchit que si vous supprimez le fichier correspondant "
-          "dans cours/cache_web/. Et un site peut changer : la preuve dit (cache), pas « la vérité ». "
-          "Sans wifi, montrez le mode (cache) : c'est précisément l'intérêt du dispositif.",
+          "Un PDF scanné ne passe pas : sans OCR, il n'y a pas de texte à indexer. L'index BM25 est lexical : "
+          "une question qui n'emploie aucun mot du livre peut manquer la bonne page — reformulez avec les "
+          "mots du livre. Le cache web ne se rafraîchit que si vous supprimez le fichier correspondant dans "
+          "cours/cache_web/. Et un site peut changer : la preuve dit (cache), pas « la vérité ».",
           "« Pourquoi la réponse dit-elle (cache) ? » Réponse attendue : la page a déjà été téléchargée lors "
-          "d'une démonstration précédente.")
+          "d'une démonstration précédente.",
+          "Le livre reste légal : votre exemplaire, un extrait libre de droits, ou la documentation officielle. "
+          "Sans aucun livre, tout le reste de l'atelier fonctionne à l'identique.")
 
 
 # ================================================================== EXTENSIONS
@@ -759,10 +822,11 @@ def chapitre_extensions(doc):
           ["Lancer build_exe.bat sur la machine de préparation (avec wifi, une seule fois).",
            "Copier dist\\AgentReact, installer.bat et le lien ollama.com/download sur la clé USB.",
            "Sur un poste neuf : installer Ollama, puis lancer AgentReact.exe.",
+           "Pour ajouter un document ou un livre, le déposer dans dist\\AgentReact\\_internal\\cours\\, puis relancer.",
            "Vérifier la ligne BUILD en console : c'est elle qui dit quelle version tourne."],
           "build_exe.bat\n"
           "dist\\AgentReact\\AgentReact.exe",
-          "BUILD app-finale v9 (multithread) - Ouvrez http://127.0.0.1:3000\n"
+          "BUILD app-finale v10 (livre indexe BM25) - Ouvrez http://127.0.0.1:3000\n"
           "\n"
           "(le navigateur s'ouvre sur la page de l'agent)",
           "C'est la version « je n'ai pas le temps d'installer Python » : Python, les documents et les "
@@ -770,11 +834,12 @@ def chapitre_extensions(doc):
           "met pas dans un exécutable de cette taille — et parce qu'il doit tourner en service.",
           "Une livraison autonome, reproductible, pour les postes sans environnement de développement.",
           "Fin du parcours : vous avez l'agent, ses preuves, son tuteur de TP et sa version portable.",
-          "On construit en --onedir, pas en --onefile : l'exe a besoin de cours/, static/ et des fichiers "
-          "Python à côté. torch et transformers sont exclus : l'étape 9 n'est pas dans l'exe. Et l'exe ne "
+          "On construit en --onedir, pas en --onefile : l'exe a besoin de son dossier _internal "
+           "(cours/, static/, les fichiers Python). torch et transformers sont exclus : l'étape 9 n'est pas "
+           "dans l'exe. Et l'exe ne "
           "contient évidemment pas Ollama.",
           "« Qu'est-ce qui n'est pas dans l'exe ? » Réponse attendue : Ollama et le modèle, qui s'installent à part.",
-          "L'exe ne démarre pas → vérifier qu'il est bien dans son dossier, avec cours/ et static/ à côté.")
+          "L'exe ne démarre pas → vérifier qu'il est bien dans son dossier, avec _internal à côté.")
 
 
 # ================================================================== OBJECTION
@@ -814,26 +879,29 @@ def chapitre_objection(doc):
 
     h2(doc, "La démonstration en quatre-vingt-dix secondes")
     para(doc, "C'est la batterie de questions à faire devant la classe, dans cet ordre. Elle est déjà "
-              "scriptée dans etape8.py --demo ; vous pouvez aussi la jouer dans app_final.py.")
+              "scriptée dans etape8.py --demo ; vous pouvez aussi la jouer dans app_final.py. La ligne "
+              "« livre » suppose un PDF indexé : sans livre, la batterie fait cinq questions et deux "
+              "appels au modèle.")
     tableau(doc,
             ["Question", "Chemin", "LLM", "Preuve affichée", "Ce que ça prouve"],
             [["Que dit la matière sur Tailwind ?", "RAG", "1", "Le nom du .docx", "Il lit et il cite"],
              ["Quand le cours 420-TT4-AS ?", "Calendrier", "0", "Le fichier du calendrier", "La date ne sort pas du modèle"],
              ["Donne le code useReducer", "Banque", "0", "banque_react.py:usereducer", "Le code ne sort pas du modèle"],
-             ["Explique useReducer ?", "Garde", "0", "aucune", "Il refuse ce qu'il n'a pas lu"],
+             ["Explique useReducer ?", "RAG", "1", "Le nom du .docx", "Il lit au lieu de deviner"],
+             ["Que dit le livre sur useReducer ?", "RAG livre", "1", "React_livre p.42", "Il cite une page précise"],
              ["Quelle est la recette de la tarte aux pommes ?", "Garde", "0", "aucune", "Le hors-sujet est instantané"]],
             [5.4, 2.4, 1.0, 4.0, 3.6], taille=8.3)
 
     encadre(doc, "La phrase à dire après la démonstration",
-            "« Sur cinq questions, le modèle n'a été appelé qu'une fois. Les quatre autres réponses sont "
-            "du code, des fichiers, et zéro invention. Ce n'est pas un chatbot plus faible : c'est un "
-            "chatbot qui a des comptes à rendre. »", VERT, VERT_CLAIR, 10.5)
+            "« Sur ces six questions, le modèle n'a été appelé que trois fois. Les trois autres réponses "
+            "sortent du code et des fichiers : zéro invention, zéro attente. Ce n'est pas un chatbot plus "
+            "faible : c'est un chatbot qui a des comptes à rendre. »", VERT, VERT_CLAIR, 10.5)
 
     h2(doc, "Les trois verrous, un seul rédacteur")
     tableau(doc,
             ["Verrou", "Ce qu'il bloque", "Où le voir"],
-            [["La garde", "Une question dont aucun mot n'est dans le cours", "etape2.py, etape8.py"],
-             ["Le tri (RAG)", "L'envoi de 24 000 caractères et la noyade du passage utile", "passages_utiles(), etape8.py"],
+            [["La garde", "Une question dont aucun mot n'est dans le cours ni dans le livre", "etape2.py, etape8.py"],
+             ["Le tri (RAG)", "L'envoi de tout le cours — ou de tout un livre — et la noyade du passage utile", "passages_utiles(), index_livre.py"],
              ["Les pastilles", "L'affirmation « selon le cours » sans fichier derrière", "extraire_sources(), app_final.py"]],
             [3.4, 8.2, 4.8])
     para(doc, "Le rédacteur, lui, n'a qu'un rôle : mettre en français ce que Python lui a apporté. C'est "
@@ -846,14 +914,14 @@ def chapitre_objection(doc):
             ["Ce qu'il dit", "Ce qu'il cherche", "Votre réponse"],
             [["« Je devrais pouvoir demander n'importe quoi »", "Tester les limites, comme avec ChatGPT", "« Tu peux : demande n'importe quoi sur le cours. Pour le reste, l'agent te dira qu'il ne sait pas — et c'est ce qui rend ses réponses fiables. »"],
              ["« Donne-moi la réponse du quiz »", "Contourner l'exercice", "« Il ne l'a pas : les réponses sont dans Python, pas dans le modèle. »"],
-             ["« Il refuse useReducer, il est nul »", "Comprendre pourquoi", "« Ajoute le chapitre useReducer au cours, relance, et il répondra. Le refus n'est pas une limite du modèle : c'est une limite de ta matière. »"],
+             ["« Il refuse ma question sur Docker, il est nul »", "Comprendre pourquoi", "« Normal : Docker n'est ni dans ton cours ni dans ton livre. Ajoute un document, relance, et il répondra. Le refus n'est pas une limite du modèle : c'est une limite de ta matière. »"],
              ["« Pourquoi pas ChatGPT ? »", "Comprendre l'intérêt du local", "« ChatGPT ne lit pas ton cours, ne cite pas tes fichiers, et ne peut pas être branché sur ta banque de code. Ici, tout est chez toi. »"]],
             [5.0, 4.4, 7.0], taille=8.5)
 
     h2(doc, "Élargir, sans casser le contrat")
     tableau(doc,
             ["Geste", "Effet", "Temps"],
-            [["Ajouter un DOCX ou un PDF dans cours/", "De nouvelles questions deviennent légitimes", "1 min"],
+            [["Ajouter un DOCX, un PDF ou un livre entier dans cours/", "De nouvelles questions deviennent légitimes ; un livre est indexé page par page", "1 min"],
              ["Ajouter un snippet dans banque_react.py", "Un nouveau « donne le code … » fonctionne", "2 min"],
              ["Ajouter un site dans le cache web", "Une source officielle devient citable", "5 min"],
              ["Ajuster les mots de la garde", "Moins de refus, plus de bruit : à faire avec mesure", "10 min"],
@@ -866,10 +934,11 @@ def chapitre_objection(doc):
     h2(doc, "Les limites, dites honnêtement")
     puces(doc, [
         ("PDF scannés", "sans OCR, ils ne contiennent pas de texte : l'agent l'annonce et les ignore."),
+        ("Livre indexé, recherche lexicale", "un livre entier est indexé, mais BM25 rapproche des mots, pas des idées : une question sans aucun mot du livre peut manquer la bonne page."),
         ("Questions à plusieurs documents", "le tri par mots choisit des passages, il ne raisonne pas sur une chaîne de preuves."),
         ("Questions abstraites", "« quelle est la philosophie de React ? » peut trouver de mauvais passages : le tri est lexical, pas sémantique."),
         ("Langue et formulation", "une question très éloignée du vocabulaire du cours peut être refusée à tort."),
-        ("Fenêtre de contexte", "8 192 tokens : au-delà, on ne peut pas tout envoyer, d'où le tri."),
+        ("Fenêtre de contexte", "8 192 tokens : au-delà, on ne peut pas tout envoyer, d'où le tri et l'index."),
         ("Garde grossière", "un mot présent par hasard suffit à laisser passer : elle réduit le bruit, elle ne prouve pas la pertinence."),
     ])
     para(doc, "Ces limites ne sont pas des défauts cachés : elles sont la raison d'être des étapes 8 et 9. "
@@ -903,7 +972,7 @@ def chapitre_demos(doc):
     tableau(doc,
             ["#", "Démonstration", "Ce que vous faites", "Ce que ça prouve", "Min"],
             [["1", "Le modèle seul contre l'agent", "Poser le même horaire à etape1.py puis à app_final.py", "La différence, c'est le fichier, pas le modèle", "1"],
-             ["2", "La garde et la banque", "« Explique useReducer ? » puis « Donne le code useReducer »", "Le refus est instantané, le code vient du professeur", "1"],
+             ["2", "La garde et la banque", "« Explique useReducer ? », « Donne le code useReducer », puis une question hors sujet", "Même sujet, deux chemins ; le refus est instantané", "1"],
              ["3", "La correction", "Coller un composant fautif", "Python tranche, le modèle explique", "1"],
              ["4", "La panne", "Fermer Ollama, relancer app_final.py", "Le Python continue de fonctionner", "1,5"],
              ["5", "Le tunnel", "Ouvrir le lien sans puis avec ?k=", "403 puis 200, sans port ouvert", "2"],
@@ -926,12 +995,12 @@ def chapitre_demos(doc):
               "plus de se souvenir : on lui donne le calendrier, et c'est Python qui lit la date. »")
 
     h2(doc, "2. La garde — le refus qui rassure")
-    para(doc, "Poser « Explique useReducer ? » (sans demander le code). L'agent répond « Hors-matiere - voir "
-              "manuel », en zéro appel. Enchaîner avec « Donne le code useReducer » : la banque répond, "
-              "avec le snippet validé. Deux questions voisines, deux chemins différents, et une preuve "
-              "dans le second cas.")
-    para(doc, "Ce qu'il faut dire : « Il ne refuse pas parce qu'il est bête. Il refuse parce que le concept "
-              "n'est pas dans le cours. Ajoutez le chapitre, relancez, et il répondra. »")
+    para(doc, "Poser « Explique useReducer ? » : l'agent lit le passage du guide et cite le .docx. Enchaîner "
+              "avec « Donne le code useReducer » : la banque répond, avec le snippet validé. Même sujet, "
+              "deux chemins, deux preuves. Puis poser « Quelle est la recette de la tarte aux pommes ? » : "
+              "refus instantané, zéro appel au modèle.")
+    para(doc, "Ce qu'il faut dire : « Il ne refuse pas parce qu'il est bête. Il refuse ce qui n'est ni dans "
+              "le cours ni dans le livre indexé. Ajoutez le chapitre, relancez, et il répondra. »")
 
     h2(doc, "3. La correction — le modèle n'a pas le dernier mot")
     para(doc, "Coller un composant en minuscule avec count=count+1. Lire d'abord la liste CORRECTION PYTHON, "
@@ -990,9 +1059,9 @@ def chapitre_runbook(doc):
              ["43-53", "Étape 5, quiz et score détaillé", "« La note est calculée. L'IA n'a pas la clé. »", "5"],
              ["53-65", "Étape 6, banque et correction", "« Le code vient du prof, l'explication vient du modèle. »", "6"],
              ["65-75", "Étape 7, vos vrais documents", "« Maintenant il lit votre calendrier, pas le mien. »", "7"],
-             ["75-88", "Étape 8, les cinq chemins", "« Une seule question sur cinq a besoin du modèle. »", "8"],
-             ["88-96", "Étape 9, tokens et évaluation", "« Voilà pourquoi on ne peut pas tout donner. »", "9"],
-             ["96-103", "Étape 10, livre et cache", "« Le wifi tombe ? Le cache répond. »", "10"],
+             ["75-90", "Étape 8, les cinq chemins et l'index du livre", "« Deux questions sur cinq ont besoin du modèle ; le livre, lui, est cité page par page. »", "8"],
+             ["90-97", "Étape 9, tokens et évaluation", "« Voilà pourquoi on ne peut pas tout donner. »", "9"],
+             ["97-103", "Étape 10, livre indexé et cache", "« Un livre de 300 pages tient dans l'agent : il cite la page. »", "10"],
              ["103-112", "Extension 11, le TP verrouillé (démo)", "« L'IA refuse de faire le TP à votre place. »", "11"],
              ["112-120", "Objection, trois phrases, synthèse", "« L'agent ne sait pas tout : il sait ce qu'il a lu, et il montre où. »", "—"]],
             [1.5, 6.2, 8.2, 1.2], taille=8.2)
@@ -1026,7 +1095,7 @@ def chapitre_depannage(doc):
     bloc(doc, "À essayer dans cet ordre",
          "taskkill /F /IM python.exe     (tue les serveurs fantomes)\n"
          "ollama list                    (le moteur et le modele sont-ils la ?)\n"
-         "python app_final.py            (relance l'agent complet, BUILD v9)",
+         "python app_final.py            (relance l'agent complet, BUILD v10)",
          ROUGE, ROUGE_CLAIR, 9)
 
     tableau(doc,
@@ -1041,12 +1110,14 @@ def chapitre_depannage(doc):
              ["DNS name does not exist", "Le tunnel vient de démarrer", "Attendre 30 secondes"],
              ["530 sur le lien public", "La fenêtre du tunnel est fermée", "Relancer partager.bat"],
              ["PDF ignoré", "PDF scanné (image)", "Utiliser un PDF texte, ou faire de l'OCR"],
+             ["Le livre n'est jamais cité", "PDF sous 20 000 caractères, ou question sans mot du livre", "Vérifier la ligne « Livre indexe » au démarrage ; reformuler avec les mots du livre"],
+             ["Premier démarrage lent avec un livre", "Extraction pypdf la première fois", "Attendre une fois ; le cache JSON accélère les lancements suivants"],
              ["DOCX illisible", "Fichier .doc renommé", "Enregistrer vraiment en .docx"],
              ["« Clique d'abord Lancer Quiz »", "État du quiz perdu", "Relancer le quiz, un binôme par navigateur"],
              ["Le TP ne débloque pas", "Code sous le seuil 0,6", "Lire l'indice, compléter, recoller"],
              ["ImportError transformers", "Conflit de versions", "pip install -r requirements.txt (le verrou huggingface-hub<2 est inclus)"],
              ["Première réponse très lente", "Le modèle se charge en mémoire", "Attendre 10 à 20 s, les suivantes sont rapides"],
-             ["L'exe ne démarre pas", "Il a été déplacé hors de son dossier", "Garder dist\\AgentReact entier, avec cours/ et static/"]],
+             ["L'exe ne démarre pas", "Il a été déplacé hors de son dossier", "Garder dist\\AgentReact entier, avec son dossier _internal"]],
             [5.0, 5.2, 5.8], taille=8.3)
 
     encadre(doc, "La règle d'or du dépannage en séance",
@@ -1064,11 +1135,12 @@ def chapitre_annexes(doc):
          "├─ etape1.py … etape10_ressources.py   les dix etapes (console ou web)\n"
          "├─ etape8.py                            l'etape manquante, reconstruite et testee\n"
          "├─ etape9b_sentiment.py, etape9c_eval.py  options de mesure\n"
-         "├─ app_final.py                         l'agent complet, BUILD v9, port 3000\n"
+         "├─ index_livre.py                       l'index BM25 d'un livre PDF, page par page\n"
+         "├─ app_final.py                         l'agent complet, BUILD v10, port 3000\n"
          "├─ app_tp.py                            l'agent pedagogue, BUILD v4, port 3002\n"
          "├─ app_maths.py                         la demo maths, BUILD v3, port 3001\n"
          "├─ banque_react.py                      22 snippets valides par le prof\n"
-         "├─ cours\\                               la matiere (txt, docx, pdf, livres\\, cache_web\\)\n"
+         "├─ cours\\                               la matiere (txt, docx, pdf, livres\\, cache_web\\, cache_index\\)\n"
          "├─ Tps\\                                 le TP (PDF, plan_tp.json, fiche_A.json, progres.csv)\n"
          "├─ static\\                              app.css + mathjax-tex-svg.js (hors-ligne)\n"
          "├─ resultats\\                           eval.csv, lien_public.txt, tunnel.log\n"
@@ -1088,11 +1160,11 @@ def chapitre_annexes(doc):
              ["Étape 5", "python etape5_web.py", "quiz + score Python"],
              ["Étape 6", "python etape6_web.py", "banque + correction"],
              ["Étape 7", "python etape6_web_doc.py", "réponse citant un .docx"],
-             ["Étape 8", "python etape8.py --demo", "5 chemins, 1 seul appel LLM"],
+             ["Étape 8", "python etape8.py --demo", "5 chemins, 2 appels LLM"],
              ["Étape 9", "python etape9_tokens.py", "13, 11, 16 tokens"],
              ["Étape 9 (éval)", "python etape9c_eval.py", "score dans resultats/eval.csv"],
              ["Étape 10", "python etape10_ressources.py", "livre + sites"],
-             ["Agent complet", "python app_final.py", "BUILD v9, port 3000"],
+             ["Agent complet", "python app_final.py", "BUILD v10, port 3000"],
              ["TP", "python app_tp.py", "BUILD v4, port 3002"],
              ["Maths (option)", "python app_maths.py", "BUILD v3, port 3001"],
              ["Partager", "partager.bat", "URL trycloudflare avec ?k="],
@@ -1110,6 +1182,9 @@ def chapitre_annexes(doc):
              ["Fenêtre de contexte", "Nombre maximal de tokens que le modèle peut lire en une fois (8 192 ici)."],
              ["Hallucination", "Réponse fluide et fausse, produite sans source. L'étape 1 la montre, l'étape 8 la bloque."],
              ["RAG", "Recherche dans des documents, puis envoi des passages utiles au modèle. Le modèle ne lit pas le disque."],
+             ["Index (BM25)", "Table qui note chaque morceau d'un livre pour une question, sans modèle ni GPU. C'est ce qui rend un livre de 300 pages interrogeable."],
+             ["Morceau (chunk)", "Extrait d'environ 900 caractères, étiqueté avec sa page : l'unité envoyée au modèle quand un livre est indexé."],
+             ["Citation p.N", "Pastille qui donne la page exacte d'un livre indexé, vérifiable en ouvrant le PDF."],
              ["Garde", "Filtre Python qui refuse une question avant l'appel au modèle."],
              ["Pastille", "Étiquette de source affichée sous une réponse, extraite du texte réellement lu."],
              ["Tool-calling", "Le modèle demande une fonction ; Python l'exécute et renvoie le résultat."],
@@ -1129,6 +1204,7 @@ def chapitre_annexes(doc):
              ["☐", "Le tokenizer gpt2 est en cache", "python etape9_tokens.py affiche 13 tokens"],
              ["☐", "Les 10 étapes ont été lancées une fois", "aucune erreur bloquante"],
              ["☐", "app_final.py répond et affiche une pastille", "question Tailwind"],
+             ["☐", "Un livre légal est dans cours/livres/ et la console annonce « Livre indexe »", "question sur une notion précise, pastille p.N"],
              ["☐", "Le calendrier donne la bonne date", "lundi 08h-12h, Mourad Sehboub"],
              ["☐", "La page est stylée sans wifi", "CSS local, pas de CDN"],
              ["☐", "app_tp.py ouvre sur 3002", "fiche A visible"],
@@ -1141,21 +1217,25 @@ def chapitre_annexes(doc):
     h2(doc, "E. Où est le code, et ce qui a changé")
     para(doc, "Ce document ne contient volontairement aucun code Python. La solution est dans les fichiers : "
               "etape1.py à etape10_ressources.py pour le parcours, app_final.py pour l'agent complet, "
-              "app_tp.py pour le tuteur de TP, app_maths.py pour la démonstration de transfert.")
+              "app_tp.py pour le tuteur de TP, app_maths.py pour la démonstration de transfert, "
+              "index_livre.py pour l'index du livre.")
     encadre(doc, "Cette version du 1er novembre 2026",
             "etape8.py a été reconstruit : il n'existait pas dans le dossier. Il reprend la logique de "
             "app_final.py (lecture des documents, tri des passages, extraction des sources, calendrier, "
             "banque) et l'expose en console avec cinq démonstrations. Il a été testé avec Ollama allumé, "
             "puis en mode dégradé sans Ollama. requirements.txt verrouille désormais huggingface-hub<2, "
-            "sans quoi l'étape 9 ne démarre pas.", VERT, VERT_CLAIR, 10)
+            "sans quoi l'étape 9 ne démarre pas. Nouveauté : index_livre.py indexe un livre PDF entier "
+            "(BM25, page par page) au lieu de le tronquer ; app_final.py et etape8.py l'utilisent, citent "
+            "« p.N » et refusent toujours le hors-sujet.", VERT, VERT_CLAIR, 10)
 
     h2(doc, "F. La fiche à garder sous les yeux")
-    bloc(doc, "Les cinq questions et les trois phrases",
+    bloc(doc, "Les six questions et les trois phrases",
          "1. Que dit la matiere sur Tailwind ?          -> RAG + pastille .docx\n"
          "2. Quand le cours 420-TT4-AS ?                -> calendrier, 0 LLM\n"
          "3. Donne le code useReducer                   -> banque, 0 LLM\n"
-         "4. Explique useReducer ?                      -> garde, refus\n"
+         "4. Explique useReducer ?                      -> RAG + pastille .docx\n"
          "5. Quelle est la recette de la tarte ?        -> garde, refus\n"
+         "6. Que dit le livre sur useReducer ?          -> RAG livre, p.42 (si livre indexe)\n"
          "\n"
          "Le modele ne lit pas vos documents : Python lit, trie, apporte.\n"
          "Le modele propose, Python decide : notes, horaires, code viennent de fichiers.\n"

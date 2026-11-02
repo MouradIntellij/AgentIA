@@ -21,9 +21,17 @@ try:  # accents corrects dans la console Windows
 except Exception:
     pass
 
+try:  # index BM25 des PDF volumineux (facultatif : le script marche sans)
+    from index_livre import IndexLivre
+except ImportError:
+    IndexLivre = None
+
+INDEX_LIVRES = []      # rempli par lire_cours() : un index par livre PDF
+SEUIL_LIVRE = 20000    # caracteres : au-dela, on indexe au lieu de couper a 6 000
+
 MODEL = "llama3.2:latest"
 URL = "http://127.0.0.1:11434/api/chat"
-BUILD = "etape8 v1 - hybride + RAG + preuves"
+BUILD = "etape8 v2 - hybride + RAG + livre indexe + preuves"
 
 # ------------------------------------------------------------------ 1. LIRE LA MATIERE
 def lire_docx(path):
@@ -45,7 +53,9 @@ def lire_pdf(path):
         return f"[PDF illisible {e}]"
 
 def lire_cours():
-    """Le BRAS : tout ce que l'agent a le droit de savoir est dans cours/."""
+    """Le BRAS : tout ce que l'agent a le droit de savoir est dans cours/.
+    Un PDF volumineux est INDEXE (BM25, page par page) au lieu d'etre tronque a 6 000 caracteres."""
+    INDEX_LIVRES.clear()
     tout = ""
     for d in sorted(pathlib.Path("cours").rglob("*.docx")):
         try:
@@ -54,7 +64,15 @@ def lire_cours():
             tout += f"\n[SOURCE {d.name} illisible: {e}]"
     for p in sorted(pathlib.Path("cours").rglob("*.pdf")):
         try:
-            tout += f"\n\n=== SOURCE: {p.name} ===\n" + lire_pdf(p)[:6000]
+            txt = lire_pdf(p)
+            if IndexLivre and len(txt) > SEUIL_LIVRE:
+                index = IndexLivre.charger(p, pathlib.Path("cours") / "cache_index")
+                if index.morceaux:
+                    INDEX_LIVRES.append(index)
+                    tout += (f"\n\n=== SOURCE: {p.name} ===\n[Livre indexe : {index.pages_total} pages, "
+                             f"{len(index.morceaux)} morceaux, recherche BM25 par page.]\n")
+                    continue
+            tout += f"\n\n=== SOURCE: {p.name} ===\n" + txt[:6000]
         except Exception as e:
             tout += f"\n[SOURCE {p.name} illisible: {e}]"
     for t in sorted(pathlib.Path("cours").glob("*.txt")):
@@ -65,7 +83,7 @@ def lire_cours():
     return tout[:24000] if tout.strip() else "Aucune source locale."
 
 # ------------------------------------------------------------------ 2. RAG : PASSAGES UTILES
-def passages_utiles(question, gros_texte, max_car=3500):
+def _passages_texte(question, gros_texte, max_car=3500, repli=True):
     """Note chaque paragraphe : +3 si un mot rare de la question y est, +1 sinon.
     On n'envoie au LLM que les meilleurs paragraphes (le RAG, c'est ce tri)."""
     mots = [w.lower() for w in re.findall(r"[a-zA-Zéèêàç]{4,}", question)]
@@ -89,7 +107,23 @@ def passages_utiles(question, gros_texte, max_car=3500):
             break
         out.append(p)
         total += len(p)
-    return "\n".join(out) if out else "\n".join(paras[:12])[:max_car]
+    if out:
+        return "\n".join(out)
+    return ("\n".join(paras[:12])[:max_car]) if repli else ""
+
+def passages_utiles(question, gros_texte, max_car=3500):
+    """Les meilleures pages du livre (si indexe), puis les notes de cours."""
+    if not INDEX_LIVRES:
+        return _passages_texte(question, gros_texte, max_car)
+    budget_livre = 1800 if max_car >= 2400 else max_car // 2
+    base = _passages_texte(question, gros_texte, max_car - budget_livre, repli=False)
+    livre = "\n\n".join(
+        bloc for bloc in (idx.contexte(question, k=8, max_car=budget_livre) for idx in INDEX_LIVRES) if bloc)
+    if not base and not livre:
+        return _passages_texte(question, gros_texte, max_car)
+    if livre:
+        livre = "EXTRAITS DU LIVRE INDEXE (la preuve est la page PDF) :\n" + livre
+    return "\n\n".join(bloc for bloc in (livre, base) if bloc).strip()
 
 def extraire_sources(ctx):
     """PREUVE Python : les fichiers qui ont REELLEMENT nourri la reponse."""
@@ -173,7 +207,10 @@ def garde_hors_matiere(question, corpus):
     if not mots:
         return False
     corpus_low = sans_accents(corpus)
-    return not any(sans_accents(m) in corpus_low for m in mots)
+    if any(sans_accents(m) in corpus_low for m in mots):
+        return False
+    # le livre indexe fait partie de la matiere : s'il connait le mot, la question est legitime
+    return not any(sans_accents(m) in idx.vocabulaire for m in mots for idx in INDEX_LIVRES)
 
 # ------------------------------------------------------------------ 4. LE LLM EXPLIQUE
 def ollama_disponible():
@@ -186,8 +223,9 @@ def ollama_disponible():
 def demander_llm(question, contexte):
     import requests
     system = ("Tu es agent tuteur React. Reponds UNIQUEMENT d'apres le CONTEXTE. "
-              "Cite la source entre crochets. Si le contexte ne suffit pas, ecris : "
-              "Hors-matiere - voir manuel. N'invente jamais une date ni un horaire.")
+              "Le contexte contient des extraits 'SOURCE: ... p.N' : cite le fichier ET la page entre crochets. "
+              "Si le contexte ne suffit pas, ecris : Hors-matiere - voir manuel. "
+              "N'invente jamais une date ni un horaire.")
     r = requests.post(URL, json={
         "model": MODEL,
         "messages": [{"role": "system", "content": system},
@@ -219,7 +257,7 @@ def repondre(question, corpus):
     # c) hors matiere
     if garde_hors_matiere(question, corpus):
         return {"chemin": "GARDE (Python seul)", "llm": 0,
-                "txt": "Hors-matiere - voir manuel. Aucun mot de la question n'apparait dans cours/.",
+                "txt": "Hors-matiere - voir manuel. Aucun mot de la question n'apparait dans cours/ ni dans le livre indexe.",
                 "sources": []}
 
     # d) RAG : on trie les passages AVANT d'appeler le LLM
@@ -264,11 +302,17 @@ def main():
     corpus = lire_cours()
     print(BUILD)
     print(f"Matiere chargee : {len(corpus)} caracteres depuis cours/  |  Ollama : {'OK' if ollama_disponible() else 'ABSENT (mode degrade)'}")
+    for idx in INDEX_LIVRES:
+        print(f"Livre indexe : {idx.nom} ({idx.pages_total} pages) -> {len(idx.morceaux)} morceaux, citations p.X")
     print("Rappel : le LLM ne lit JAMAIS le disque ; c'est Python qui lui apporte les passages.")
-    print("Tapez une question, ou 'demo' pour les 5 demonstrations, vide = quitter.")
+    print("Tapez une question, ou 'demo' pour les demonstrations, vide = quitter.")
+
+    demos = list(DEMOS)
+    if INDEX_LIVRES:
+        demos.append("Que dit le livre sur useReducer et les etats complexes ?")
 
     if "--demo" in sys.argv:
-        for q in DEMOS:
+        for q in demos:
             afficher(q, corpus)
         return
 
@@ -280,7 +324,7 @@ def main():
         if not q:
             break
         if q.lower() in ("demo", "démo"):
-            for d in DEMOS:
+            for d in demos:
                 afficher(d, corpus)
             continue
         afficher(q, corpus)

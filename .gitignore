@@ -20,6 +20,9 @@ TPs/progres.csv
 # Livres du prof : restent en local (droits d'auteur)
 cours/livres/*.pdf
 
+# Index BM25 des livres : regenerable en quelques secondes au demarrage
+cours/cache_index/
+
 # Tunnel : binaire de 53 Mo (re-telecharge par partager.py) et etat du moment
 outils_tunnel/cloudflared.exe
 resultats/lien_public.txt

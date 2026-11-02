@@ -1,7 +1,7 @@
 """APP FINALE TechWeek - LLM + Python + RAG sur une interface style Claude (CSS local, zero CDN).
 Modes : Cours (RAG docx/pdf) | Quiz | Banque codes | Corriger code (hybride) | Eval comprehension (hybride).
 Lancer : python app_final.py  ->  http://127.0.0.1:3000 (fonctionne sans internet)."""
-import pathlib, re, random, json, ast, difflib, builtins, sys, os, requests, subprocess
+import pathlib, re, random, json, ast, difflib, builtins, sys, os, requests, subprocess, unicodedata
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 def RACINE():
@@ -13,11 +13,34 @@ def RACINE():
 MODEL = "llama3.2:latest"
 URL = "http://127.0.0.1:11434/api/chat"
 CLE_ACCES = os.environ.get("CLE_ACCES", "").strip()  # vide = ouvert (local) ; sinon ?k=... exigee
-SYSTEM = "Tu es agent tuteur. Tu reponds UNIQUEMENT d'apres le resultat de l'outil lire_cours. Cite la SOURCE entre crochets. Si date/horaire : donne la date exacte du calendrier. N'invente rien. Si absent : Hors-matiere."
+SYSTEM = ("Tu es agent tuteur. Tu reponds UNIQUEMENT d'apres le CONTEXTE renvoye par l'outil lire_cours. "
+          "Le contexte contient des extraits 'SOURCE: ... p.N' : cite le fichier ET la page entre crochets. "
+          "Si la reponse n'est pas dans le contexte, ecris exactement : Hors-matiere. "
+          "N'invente jamais une date, un horaire, un chapitre ni un exemple absent des sources. "
+          "Si date/horaire : donne la date exacte du calendrier.")
 OUTIL = [
     {"type": "function", "function": {"name": "lire_cours", "description": "Lit les docs de cours/", "parameters": {"type": "object", "properties": {}, "required": []}}},
     {"type": "function", "function": {"name": "corriger_code", "description": "Corrige le code colle", "parameters": {"type": "object", "properties": {"code": {"type": "string"}}, "required": ["code"]}}},
 ]
+
+# ---------- INDEX DU LIVRE (un PDF volumineux est indexe, pas tronque) ----------
+try:
+    from index_livre import IndexLivre, mots as mots_index
+except ImportError:  # l'agent reste utilisable sans le module : on retombe sur la troncature
+    IndexLivre = None
+    mots_index = None
+INDEX_LIVRES = []        # rempli par lire_cours() : un index BM25 par PDF volumineux
+SEUIL_LIVRE = 20000      # caracteres : au-dela, on indexe au lieu de couper a 6 000
+_CACHE_COURS = {"sig": None, "txt": None, "vocab": None}
+
+def _signature_cours():
+    """Empreinte des fichiers de cours/ : si un document change, on recharge tout seul."""
+    racine = RACINE() / "cours"
+    if not racine.exists(): return ()
+    return tuple(sorted(
+        (str(p), p.stat().st_size, int(p.stat().st_mtime))
+        for p in racine.rglob("*")
+        if p.is_file() and "cache_index" not in str(p)))
 
 # ---------- LECTURE DOCS ----------
 def lire_docx(path):
@@ -39,18 +62,34 @@ def lire_pdf(path):
         return f"[PDF illisible {e}]"
 
 def lire_cours():
+    """Tout ce que l'agent a le droit de savoir. Les gros PDF sont indexes, pas tronques."""
+    signature = _signature_cours()
+    if _CACHE_COURS["sig"] == signature and _CACHE_COURS["txt"] is not None:
+        return _CACHE_COURS["txt"]
+    INDEX_LIVRES.clear()
     tout = ""
     for d in sorted((RACINE() / "cours").rglob("*.docx")):
         try: tout += f"\n\n=== SOURCE: {d.name} ===\n" + lire_docx(d)[:6000]
         except Exception as e: tout += f"\n[SOURCE {d.name} illisible: {e}]"
     for p in sorted((RACINE() / "cours").rglob("*.pdf")):
-        try: tout += f"\n\n=== SOURCE: {p.name} ===\n" + lire_pdf(p)[:6000]
+        try:
+            txt = lire_pdf(p)
+            if IndexLivre and len(txt) > SEUIL_LIVRE:
+                index = IndexLivre.charger(p, RACINE() / "cours" / "cache_index")
+                if index.morceaux:
+                    INDEX_LIVRES.append(index)
+                    tout += (f"\n\n=== SOURCE: {p.name} ===\n"
+                             f"[Livre indexe : {index.pages_total} pages, {len(index.morceaux)} morceaux. "
+                             f"Recherche BM25 page par page ; seuls les meilleurs morceaux sont envoyes.]\n")
+                    continue
+            tout += f"\n\n=== SOURCE: {p.name} ===\n" + txt[:6000]
         except Exception as e: tout += f"\n[SOURCE {p.name} illisible: {e}]"
     for t in sorted((RACINE() / "cours").glob("*.txt")) + sorted((RACINE() / "cours").glob("web_*.txt")):
         try: tout += f"\n\n=== SOURCE: {t.name} ===\n" + t.read_text(encoding="utf-8")[:4000]
         except Exception: pass
-    if tout.strip(): return tout[:24000]
-    return "Aucune source locale."
+    resultat = tout[:24000] if tout.strip() else "Aucune source locale."
+    _CACHE_COURS.update(sig=signature, txt=resultat, vocab=None)
+    return resultat
 
 WEB_SITES = {
     "react.dev": "https://react.dev/reference/react",
@@ -85,7 +124,7 @@ def enrichir_web(question, deja):
     except Exception as e:
         return f"\n[SOURCE WEB {url} inaccessible: {e}]"
 
-def passages_utiles(question, gros_texte, max_car=3500):
+def _passages_notes(question, gros_texte, max_car=3500, repli=True):
     mots = [w.lower() for w in re.findall(r"[a-zA-Zéèêàç]{4,}", question)]
     STOP = {"cours", "quoi", "quand", "comment", "pourquoi", "dans", "avec", "cette", "sont", "plus", "faire", "donne"}
     rares = [m for m in mots if m not in STOP] or mots
@@ -102,7 +141,21 @@ def passages_utiles(question, gros_texte, max_car=3500):
         if total + len(p) > max_car: break
         out.append(p); total += len(p)
     if out: return "\n".join(out)
-    return "\n".join(paras[:12])[:max_car]
+    return ("\n".join(paras[:12])[:max_car]) if repli else ""
+
+def passages_utiles(question, gros_texte, max_car=3500):
+    """Les meilleures pages du livre (si indexe), puis les notes de cours."""
+    if not INDEX_LIVRES:
+        return _passages_notes(question, gros_texte, max_car)
+    budget_livre = 1800 if max_car >= 2400 else max_car // 2
+    base = _passages_notes(question, gros_texte, max_car - budget_livre, repli=False)
+    livre = "\n\n".join(
+        bloc for bloc in (idx.contexte(question, k=8, max_car=budget_livre) for idx in INDEX_LIVRES) if bloc)
+    if not base and not livre:
+        return _passages_notes(question, gros_texte, max_car)
+    if livre:
+        livre = "EXTRAITS DU LIVRE INDEXE (la preuve est la page PDF) :\n" + livre
+    return "\n\n".join(bloc for bloc in (livre, base) if bloc).strip()
 
 def extraire_sources(ctx):
     """Preuve Python (pas LLM) : quelles SOURCES ont nourri la reponse."""
@@ -227,38 +280,54 @@ def corriger_code(code):
     return {"type": "code", "txt": "[outil] corriger_code() [Python] + [IA]\n" + txt}
 
 # ---------- AGENT COURS (RAG) ----------
+def sans_accents(texte):
+    return unicodedata.normalize("NFD", texte).encode("ascii", "ignore").decode().lower()
+
+def garde_hors_matiere(question, corpus):
+    """Aucun mot important de la question n'existe dans cours/ ni dans le livre -> refus Python, 0 LLM."""
+    if mots_index is None:
+        return False
+    # meme normalisation que l'index : pluriels et accents ne doivent pas faire refuser
+    qmots = [m for m in mots_index(question) if len(m) >= 4]
+    if not qmots: return False
+    if _CACHE_COURS["vocab"] is None:
+        _CACHE_COURS["vocab"] = set(mots_index(corpus))
+    if any(m in _CACHE_COURS["vocab"] for m in qmots): return False
+    if any(m in idx.vocabulaire for m in qmots for idx in INDEX_LIVRES): return False
+    return not any(site in sans_accents(question)
+                   for site in ("react.dev", "mdn", "javascript.info", "vite", "tailwind"))
+
+def repondre_rag(q, cc):
+    """Python apporte les passages, le LLM redige. Appele par l'outil OU en repli si le petit modele n'appelle rien."""
+    ctx = passages_utiles(q, cc)
+    if len(ctx) < 800 or any(m in q.lower() for m in ["react.dev", "mdn", "site", "officiel", "documentation", "javascript.info", "vite", "tailwind"]):
+        ctx += enrichir_web(q, ctx)
+    r = requests.post(URL, json={"model": MODEL, "messages": [
+        {"role": "system", "content": SYSTEM},
+        {"role": "user", "content": f"CONTEXTE:\n{ctx[:8000]}\n\nQUESTION: {q}"}],
+        "stream": False, "options": {"temperature": 0.0, "num_ctx": 8192}}, timeout=120).json()["message"]
+    srcs = extraire_sources(ctx)
+    return {"type": "cours", "txt": "[outil] lire_cours() [RAG+WEB]\n" + (r.get("content") or ""),
+            "sources": srcs or ["aucune (reponse memoire LLM - mefiance)"]}
+
 def run_agent_cours(q):
     if "```" in q or "function " in q or "def " in q or "<div" in q:
         if "\n" in q or "{" in q or "=" in q: return corriger_code(q.replace("```", ""))
     ex = trouver_exemple(q)
     if ex: return ex
+    cc = lire_cours()
     try:
-        cal = reponse_calendrier(q, lire_cours())
+        cal = reponse_calendrier(q, cc)
         if cal: return cal
     except Exception: pass
-    r = requests.post(URL, json={"model": MODEL, "messages": [
-        {"role": "system", "content": SYSTEM}, {"role": "user", "content": q}],
-        "stream": False, "tools": OUTIL, "options": {"temperature": 0.0, "num_ctx": 8192}}, timeout=120).json()["message"]
-    for c in (r.get("tool_calls") or []):
-        if c["function"]["name"] == "corriger_code":
-            arg = c["function"].get("arguments", {})
-            if isinstance(arg, str):
-                try: arg = json.loads(arg)
-                except Exception: arg = {"code": q}
-            return corriger_code(arg.get("code", q))
-        if c["function"]["name"] == "lire_cours":
-            cc = lire_cours()
-            ctx = passages_utiles(q, cc)
-            if len(ctx) < 800 or any(m in q.lower() for m in ["react.dev", "mdn", "site", "officiel", "documentation", "javascript.info", "vite", "tailwind"]):
-                ctx += enrichir_web(q, ctx)
-            r2 = requests.post(URL, json={"model": MODEL, "messages": [
-                {"role": "system", "content": SYSTEM}, {"role": "user", "content": q},
-                {"role": "assistant", "content": "", "tool_calls": r["tool_calls"]},
-                {"role": "tool", "content": ctx[:8000]}],
-                "stream": False, "options": {"temperature": 0.0, "num_ctx": 8192}}, timeout=120).json()["message"]
-            srcs = extraire_sources(ctx)
-            return {"type": "cours", "txt": "[outil] lire_cours() [RAG+WEB]\n" + (r2.get("content") or ""), "sources": srcs or ["aucune (reponse memoire LLM - mefiance)"]}
-    return {"type": "cours", "txt": r.get("content") or ""}
+    if garde_hors_matiere(q, cc):
+        return {"type": "cours", "sources": [], "txt":
+                "Hors-matiere - voir le manuel.\n"
+                "Aucun mot de votre question n'apparait dans les documents de cours/ "
+                "ni dans le livre indexe. L'agent ne repond pas de memoire : c'est le contrat."}
+    # Python choisit le chemin (banque, calendrier, garde) ; pour le RAG, Python apporte
+    # les passages et le modele redige. Une seule requete au modele, et jamais de memoire.
+    return repondre_rag(q, cc)
 
 # ---------- EVAL ----------
 def eval_next():
@@ -403,6 +472,11 @@ def check_moteur():
     except Exception:
         print("Moteur ABSENT : installez Ollama (ollama.com/download) puis ollama pull llama3.2:latest.")
 
-check_moteur()
-print("BUILD app-finale v9 (multithread) - Ouvrez http://127.0.0.1:3000")
-ThreadingHTTPServer(("127.0.0.1", 3000), H).serve_forever()
+if __name__ == "__main__":
+    check_moteur()
+    lire_cours()  # precharge les notes + l'index des livres, une seule fois
+    for index in INDEX_LIVRES:
+        print(f"Livre indexe : {index.nom} ({index.pages_total} pages) -> "
+              f"{len(index.morceaux)} morceaux, recherche BM25 par page.")
+    print("BUILD app-finale v10 (livre indexe BM25) - Ouvrez http://127.0.0.1:3000")
+    ThreadingHTTPServer(("127.0.0.1", 3000), H).serve_forever()

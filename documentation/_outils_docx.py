@@ -403,6 +403,7 @@ def tableau(doc, entetes, lignes, largeurs=None, taille=8.8, entete_fond=ENCRE,
 
     for j, ligne in enumerate(lignes):
         row = t.add_row()
+        row_no_split(row)
         for i, val in enumerate(ligne):
             c = row.cells[i]
             if zebre and j % 2 == 1:
