@@ -22,12 +22,19 @@ except Exception:
     pass
 
 try:  # index BM25 des PDF volumineux (facultatif : le script marche sans)
+    import index_livre
     from index_livre import IndexLivre
 except ImportError:
+    index_livre = None
     IndexLivre = None
 
 INDEX_LIVRES = []      # rempli par lire_cours() : un index par livre PDF
 SEUIL_LIVRE = 20000    # caracteres : au-dela, on indexe au lieu de couper a 6 000
+
+def _bloc_livre(index, nom_pdf):
+    """Resume du livre dans le corpus : les pages, elles, arrivent a la question."""
+    return (f"\n\n=== SOURCE: {nom_pdf} ===\n[Livre indexe : {index.pages_total} pages, "
+            f"{len(index.morceaux)} morceaux, recherche BM25 par page.]\n")
 
 MODEL = "llama3.2:latest"
 URL = "http://127.0.0.1:11434/api/chat"
@@ -59,18 +66,28 @@ def lire_cours():
     tout = ""
     for d in sorted(pathlib.Path("cours").rglob("*.docx")):
         try:
-            tout += f"\n\n=== SOURCE: {d.name} ===\n" + lire_docx(d)[:6000]
+            tout += f"\n\n=== SOURCE: {d.name} ===\n" + lire_docx(d)[:60000]
         except Exception as e:
             tout += f"\n[SOURCE {d.name} illisible: {e}]"
     for p in sorted(pathlib.Path("cours").rglob("*.pdf")):
         try:
-            txt = lire_pdf(p)
-            if IndexLivre and len(txt) > SEUIL_LIVRE:
-                index = IndexLivre.charger(p, pathlib.Path("cours") / "cache_index")
+            cache = pathlib.Path("cours") / "cache_index"
+            # Livre deja indexe : on relit le cache au lieu d'extraire le PDF a chaque demo.
+            if IndexLivre and index_livre.en_cache(p, cache):
+                index = IndexLivre.charger(p, cache)
                 if index.morceaux:
                     INDEX_LIVRES.append(index)
-                    tout += (f"\n\n=== SOURCE: {p.name} ===\n[Livre indexe : {index.pages_total} pages, "
-                             f"{len(index.morceaux)} morceaux, recherche BM25 par page.]\n")
+                    tout += _bloc_livre(index, p.name)
+                    continue
+            pages = index_livre.extraire_pdf(p) if IndexLivre else None
+            txt = "\n".join(t for _, t in pages) if pages is not None else lire_pdf(p)
+            if pages is not None and len(txt.strip()) < 200:
+                txt = "[PDF scanne image : besoin OCR, ignore.]"
+            if IndexLivre and len(txt) > SEUIL_LIVRE:
+                index = IndexLivre.charger(p, cache, pages=pages)
+                if index.morceaux:
+                    INDEX_LIVRES.append(index)
+                    tout += _bloc_livre(index, p.name)
                     continue
             tout += f"\n\n=== SOURCE: {p.name} ===\n" + txt[:6000]
         except Exception as e:
@@ -80,7 +97,7 @@ def lire_cours():
             tout += f"\n\n=== SOURCE: {t.name} ===\n" + t.read_text(encoding="utf-8")[:4000]
         except Exception:
             pass
-    return tout[:24000] if tout.strip() else "Aucune source locale."
+    return tout[:120000] if tout.strip() else "Aucune source locale."
 
 # ------------------------------------------------------------------ 2. RAG : PASSAGES UTILES
 def _passages_texte(question, gros_texte, max_car=3500, repli=True):
@@ -117,8 +134,9 @@ def passages_utiles(question, gros_texte, max_car=3500):
         return _passages_texte(question, gros_texte, max_car)
     budget_livre = 1800 if max_car >= 2400 else max_car // 2
     base = _passages_texte(question, gros_texte, max_car - budget_livre, repli=False)
+    part = max(700, budget_livre // max(1, len(INDEX_LIVRES)))   # plusieurs livres : budget partage
     livre = "\n\n".join(
-        bloc for bloc in (idx.contexte(question, k=8, max_car=budget_livre) for idx in INDEX_LIVRES) if bloc)
+        bloc for bloc in (idx.contexte(question, k=8, max_car=part) for idx in INDEX_LIVRES) if bloc)
     if not base and not livre:
         return _passages_texte(question, gros_texte, max_car)
     if livre:
@@ -200,14 +218,15 @@ def trouver_exemple(question):
 
 def garde_hors_matiere(question, corpus):
     """Aucun mot important de la question n'existe dans cours/ -> refus Python, 0 LLM."""
-    mots = [w.lower() for w in re.findall(r"[a-zA-Zéèêàç]{5,}", question)]
+    mots = [sans_accents(w) for w in re.findall(r"[a-zA-Zéèêàç]{5,}", question)]
     STOP = {"quelle", "quels", "quelles", "explique", "expliquer", "donner", "peux",
             "pouvez", "comment", "pourquoi", "matiere", "cours", "selon", "dossier"}
-    mots = [m for m in mots if sans_accents(m) not in STOP]
+    mots = [m for m in mots if m not in STOP]
     if not mots:
         return False
-    corpus_low = sans_accents(corpus)
-    if any(sans_accents(m) in corpus_low for m in mots):
+    # Comparaison par MOTS ENTIERS : "tarte" ne doit pas se cacher dans "started".
+    vocabulaire = set(re.findall(r"[a-z]{5,}", sans_accents(corpus)))
+    if any(m in vocabulaire or (m.endswith("s") and m[:-1] in vocabulaire) for m in mots):
         return False
     # le livre indexe fait partie de la matiere : s'il connait le mot, la question est legitime
     return not any(sans_accents(m) in idx.vocabulaire for m in mots for idx in INDEX_LIVRES)
@@ -223,7 +242,9 @@ def ollama_disponible():
 def demander_llm(question, contexte):
     import requests
     system = ("Tu es agent tuteur React. Reponds UNIQUEMENT d'apres le CONTEXTE. "
-              "Le contexte contient des extraits 'SOURCE: ... p.N' : cite le fichier ET la page entre crochets. "
+              "Le contexte contient des extraits 'SOURCE: ... p.N' : termine par une ligne "
+              "'Sources : [fichier p.N]' avec les pages utilisees. "
+              "Ne recopie jamais les entetes '=== SOURCE' ni le texte du contexte. "
               "Si le contexte ne suffit pas, ecris : Hors-matiere - voir manuel. "
               "N'invente jamais une date ni un horaire.")
     r = requests.post(URL, json={
@@ -234,7 +255,17 @@ def demander_llm(question, contexte):
         "options": {"temperature": 0.0, "num_ctx": 8192},
     }, timeout=120)
     r.raise_for_status()
-    return r.json()["message"]["content"]
+    return _sans_echo(r.json()["message"]["content"])
+
+def _sans_echo(texte):
+    """llama3.2 recopie parfois les entetes du contexte : on les retire, le contenu reste intact."""
+    garde = []
+    for ligne in (texte or "").splitlines():
+        nu = ligne.strip()
+        if nu.startswith("EXTRAITS DU LIVRE INDEXE") or nu.startswith("[=== SOURCE:") or nu == "CONTEXTE:":
+            continue
+        garde.append(ligne)
+    return "\n".join(garde).strip()
 
 # ------------------------------------------------------------------ 5. LE GUICHET
 def repondre(question, corpus):
@@ -309,7 +340,7 @@ def main():
 
     demos = list(DEMOS)
     if INDEX_LIVRES:
-        demos.append("Que dit le livre sur useReducer et les etats complexes ?")
+        demos.append("Que dit le livre sur Redux et les reducers ?")
 
     if "--demo" in sys.argv:
         for q in demos:

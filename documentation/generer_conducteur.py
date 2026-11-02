@@ -568,7 +568,7 @@ def etapes_1_5(doc):
           "date, hors-sujet, ou question documentaire. Puis il ne lui donne que les passages utiles. Enfin, "
           "il extrait les sources du texte qu'il a réellement envoyé — ce ne sont pas des remerciements, "
           "ce sont des preuves. Et si un livre volumineux est présent, Python l'a indexé page par page : "
-          "la réponse peut citer « p.42 », pas seulement « le livre ».",
+          "la réponse peut citer « p.565 », pas seulement « le livre ».",
           ["Lancer la démonstration : cinq questions, quatre chemins différents (six questions et un "
            "chemin de plus si un livre est indexé).",
            "Compter les appels au modèle : deux sur cinq.",
@@ -614,13 +614,13 @@ def etapes_1_5(doc):
           "documents ou dans le livre, même si la réponse exacte n'y est pas. Le tri par mots-clés peut "
           "choisir de mauvais passages sur une question abstraite : on améliore en ajoutant des documents, "
           "jamais en supprimant la preuve. Et on n'envoie jamais tout le corpus : même indexé, un livre de "
-          "300 pages ne pèse que quatre ou cinq pages dans le contexte.",
+          "800 pages ne pèse que quatre ou cinq pages dans le contexte.",
           "« Combien de fois le modèle a-t-il été appelé pour cinq questions ? » Réponse attendue : deux. "
           "« Qui a produit les pastilles ? » Python, à partir du texte lu.",
           "etape8.py est une démonstration, pas le produit : si elle échoue, lancez app_final.py, qui contient la même logique.")
 
     h2(doc, "Le livre entier, page par page : l'index BM25")
-    para(doc, "Un manuel React de 300 pages pèse environ 500 000 caractères, soit seize fois la fenêtre de "
+    para(doc, "Un manuel React de 800 pages pèse environ un million de caractères, soit plus de trente fois la fenêtre de "
               "8 192 tokens (≈ 30 000 caractères). On ne peut donc ni l'envoyer en entier, ni le couper aux "
               "6 000 premiers caractères : l'agent ne connaîtrait que la préface. La solution tient dans un "
               "fichier, index_livre.py, et en quatre gestes.")
@@ -628,23 +628,23 @@ def etapes_1_5(doc):
         ("Extraire", "pypdf lit le PDF page par page ; chaque morceau garde son numéro de page d'origine."),
         ("Découper", "morceaux d'environ 900 caractères, avec 150 caractères de recouvrement pour ne pas couper une idée en deux."),
         ("Noter", "BM25, un score classique qui récompense les mots rares de la question et pénalise les morceaux trop longs."),
-        ("Envoyer", "seuls les quatre ou cinq meilleurs morceaux partent au modèle, chacun précédé de [=== SOURCE: React_livre p.42 ===]."),
+        ("Envoyer", "seuls les quatre ou cinq meilleurs morceaux partent au modèle, chacun précédé de [=== SOURCE: fullstack-react p.565 ===]."),
     ])
-    bloc(doc, "Ce que la console affiche (exemple avec un livre de 312 pages)",
-         "Livre indexe : React_livre (312 pages) -> 1187 morceaux, recherche BM25 par page\n"
+    bloc(doc, "Ce que la console affiche (le livre réellement déposé dans cours/livres/)",
+         "Livre indexe : fullstack-react (844 pages) -> 1696 morceaux, citations p.X\n"
          "(le premier lancement extrait le PDF ; les suivants lisent le cache JSON)\n"
          "\n"
-         "QUESTION : Que dit le livre sur useReducer et les etats complexes ?\n"
+         "QUESTION : Que dit le livre sur Redux et les reducers ?\n"
          "[outil] lire_cours() / tri Python | chemin : RAG (Python trie, LLM redige) | 1 appel(s) LLM\n"
-         "Le livre presente useReducer comme le hook des transitions complexes...\n"
-         "Sources consultees (preuve Python) : [React_livre p.42]  [React_livre p.43]",
+         "Un reducer est une fonction qui recoit l'etat et une action, et renvoie un nouvel etat...\n"
+         "Sources consultees (preuve Python) : [fullstack-react p.565]  [React-Cours-Bases p.42]",
          BLEU, BLEU_CLAIR, 8.8)
-    para(doc, "Le modèle voit environ 2 000 caractères, comme avant. Mais la bibliothèque peut faire "
-              "500 pages, et chaque citation porte un numéro vérifiable : on ouvre le livre à la page 42, "
+    para(doc, "Le modèle voit environ 3 000 caractères, comme avant. Mais la bibliothèque peut faire "
+              "800 pages, et chaque citation porte un numéro vérifiable : on ouvre le livre à la page 565, "
               "et le passage y est. C'est la différence entre « le livre dit que » et une preuve.")
     tableau(doc,
             ["Situation", "Ce qui part au modèle", "Ce que l'utilisateur voit"],
-            [["Question sur une notion du livre", "4 ou 5 pages, ~1 800 caractères", "La réponse + la pastille p.42"],
+            [["Question sur une notion du livre", "4 ou 5 pages, ~1 800 caractères", "La réponse + la pastille p.565"],
              ["Question sur une notion du cours", "Les notes de cours (~1 700 caractères)", "La réponse + le nom du .docx"],
              ["Question absente du cours et du livre", "rien : la garde refuse avant le modèle", "« Hors-matière », 0 appel, 0 invention"],
              ["Deuxième lancement", "le même index, relu depuis le cache JSON", "démarrage en quelques millisecondes"]],
@@ -722,14 +722,14 @@ def etapes_1_5(doc):
           "python etape10_ressources.py",
           "[Ressources React - livre + web]\n"
           "\n"
-          "LIVRE : React - Apprendre pas a pas (dossier du prof)\n"
-          "Fichier attendu : cours/livres/React_livre.pdf\n"
-          "PDF presents : React_livre.pdf\n"
+          "LIVRE : Le(s) livre(s) de cours/livres/ (votre copie legale)\n"
+          "Dossier : cours/livres/\n"
+          "PDF presents : fullstack-react.pdf, React-Cours-Bases.pdf\n"
           "\n"
           "SITES POPULAIRES :\n"
           "  - React officiel - react.dev : https://react.dev",
           "L'agent peut désormais citer une page précise d'un livre et la documentation officielle, pas "
-          "seulement vos notes. Un manuel de 300 pages ne rentre pas dans la fenêtre du modèle : il est "
+          "seulement vos notes. Un manuel de 800 pages ne rentre pas dans la fenêtre du modèle : il est "
           "indexé, et seules quatre ou cinq pages sont envoyées. Le cache, lui, rend la démonstration "
           "reproductible : si le wifi du collège tombe, ou si le CDN est bloqué, l'agent répond quand même "
           "avec ce qu'il a déjà lu.",
@@ -888,7 +888,7 @@ def chapitre_objection(doc):
              ["Quand le cours 420-TT4-AS ?", "Calendrier", "0", "Le fichier du calendrier", "La date ne sort pas du modèle"],
              ["Donne le code useReducer", "Banque", "0", "banque_react.py:usereducer", "Le code ne sort pas du modèle"],
              ["Explique useReducer ?", "RAG", "1", "Le nom du .docx", "Il lit au lieu de deviner"],
-             ["Que dit le livre sur useReducer ?", "RAG livre", "1", "React_livre p.42", "Il cite une page précise"],
+             ["Que dit le livre sur Redux ?", "RAG livre", "1", "fullstack-react p.565", "Il cite une page précise"],
              ["Quelle est la recette de la tarte aux pommes ?", "Garde", "0", "aucune", "Le hors-sujet est instantané"]],
             [5.4, 2.4, 1.0, 4.0, 3.6], taille=8.3)
 
@@ -1061,7 +1061,7 @@ def chapitre_runbook(doc):
              ["65-75", "Étape 7, vos vrais documents", "« Maintenant il lit votre calendrier, pas le mien. »", "7"],
              ["75-90", "Étape 8, les cinq chemins et l'index du livre", "« Deux questions sur cinq ont besoin du modèle ; le livre, lui, est cité page par page. »", "8"],
              ["90-97", "Étape 9, tokens et évaluation", "« Voilà pourquoi on ne peut pas tout donner. »", "9"],
-             ["97-103", "Étape 10, livre indexé et cache", "« Un livre de 300 pages tient dans l'agent : il cite la page. »", "10"],
+             ["97-103", "Étape 10, livre indexé et cache", "« Un livre de 800 pages tient dans l'agent : il cite la page. »", "10"],
              ["103-112", "Extension 11, le TP verrouillé (démo)", "« L'IA refuse de faire le TP à votre place. »", "11"],
              ["112-120", "Objection, trois phrases, synthèse", "« L'agent ne sait pas tout : il sait ce qu'il a lu, et il montre où. »", "—"]],
             [1.5, 6.2, 8.2, 1.2], taille=8.2)
@@ -1235,7 +1235,7 @@ def chapitre_annexes(doc):
          "3. Donne le code useReducer                   -> banque, 0 LLM\n"
          "4. Explique useReducer ?                      -> RAG + pastille .docx\n"
          "5. Quelle est la recette de la tarte ?        -> garde, refus\n"
-         "6. Que dit le livre sur useReducer ?          -> RAG livre, p.42 (si livre indexe)\n"
+         "6. Que dit le livre sur Redux ?               -> RAG livre, p.565 (si livre indexe)\n"
          "\n"
          "Le modele ne lit pas vos documents : Python lit, trie, apporte.\n"
          "Le modele propose, Python decide : notes, horaires, code viennent de fichiers.\n"

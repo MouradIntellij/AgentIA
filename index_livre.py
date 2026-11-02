@@ -169,8 +169,11 @@ class IndexLivre:
         return "\n\n".join(blocs)
 
     @classmethod
-    def charger(cls, chemin, dossier_cache=None, force=False):
-        """Charge l'index, ou le construit une fois puis le relit depuis le cache JSON."""
+    def charger(cls, chemin, dossier_cache=None, force=False, pages=None):
+        """Charge l'index, ou le construit une fois puis le relit depuis le cache JSON.
+
+        pages : texte deja extrait par l'appelant, pour ne pas relire deux fois le meme PDF.
+        """
         chemin = pathlib.Path(chemin)
         etat = chemin.stat()
         empreinte = hashlib.sha1(
@@ -186,7 +189,8 @@ class IndexLivre:
             except Exception:
                 pass  # cache corrompu : on reconstruit
 
-        pages = extraire_pdf(chemin)
+        if pages is None:
+            pages = extraire_pdf(chemin)
         morceaux = decouper(pages)
         index = cls(chemin.stem, morceaux, len(pages))
         try:
@@ -199,6 +203,16 @@ class IndexLivre:
         except Exception:
             pass  # disque en lecture seule : l'index reste en memoire
         return index
+
+
+def en_cache(chemin, dossier_cache=None):
+    """Vrai si l'index de ce PDF est deja construit (meme taille, meme date) : rien a extraire."""
+    chemin = pathlib.Path(chemin)
+    etat = chemin.stat()
+    empreinte = hashlib.sha1(
+        ("%s|%d|%d" % (chemin.name, etat.st_size, int(etat.st_mtime))).encode()).hexdigest()[:10]
+    cache = pathlib.Path(dossier_cache) if dossier_cache else (chemin.parent / "cache_index")
+    return (cache / ("%s-%s.json" % (chemin.stem, empreinte))).exists()
 
 
 def indexer_dossier(dossier, seuil_car=20000, dossier_cache=None):

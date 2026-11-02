@@ -14,7 +14,9 @@ MODEL = "llama3.2:latest"
 URL = "http://127.0.0.1:11434/api/chat"
 CLE_ACCES = os.environ.get("CLE_ACCES", "").strip()  # vide = ouvert (local) ; sinon ?k=... exigee
 SYSTEM = ("Tu es agent tuteur. Tu reponds UNIQUEMENT d'apres le CONTEXTE renvoye par l'outil lire_cours. "
-          "Le contexte contient des extraits 'SOURCE: ... p.N' : cite le fichier ET la page entre crochets. "
+          "Le contexte contient des extraits 'SOURCE: ... p.N' : termine ta reponse par une ligne "
+          "'Sources : [fichier p.N, ...]' avec uniquement les pages que tu as utilisees. "
+          "Ne recopie jamais les entetes '=== SOURCE' ni le texte du contexte. "
           "Si la reponse n'est pas dans le contexte, ecris exactement : Hors-matiere. "
           "N'invente jamais une date, un horaire, un chapitre ni un exemple absent des sources. "
           "Si date/horaire : donne la date exacte du calendrier.")
@@ -25,8 +27,10 @@ OUTIL = [
 
 # ---------- INDEX DU LIVRE (un PDF volumineux est indexe, pas tronque) ----------
 try:
+    import index_livre
     from index_livre import IndexLivre, mots as mots_index
 except ImportError:  # l'agent reste utilisable sans le module : on retombe sur la troncature
+    index_livre = None
     IndexLivre = None
     mots_index = None
 INDEX_LIVRES = []        # rempli par lire_cours() : un index BM25 par PDF volumineux
@@ -61,6 +65,13 @@ def lire_pdf(path):
     except Exception as e:
         return f"[PDF illisible {e}]"
 
+def _bloc_livre(index, nom_pdf):
+    """Ce que le modele voit du livre : un resume, pas 844 pages. Les pages viennent a la question."""
+    INDEX_LIVRES.append(index)
+    return (f"\n\n=== SOURCE: {nom_pdf} ===\n"
+            f"[Livre indexe : {index.pages_total} pages, {len(index.morceaux)} morceaux. "
+            f"Recherche BM25 page par page ; seuls les meilleurs morceaux sont envoyes.]\n")
+
 def lire_cours():
     """Tout ce que l'agent a le droit de savoir. Les gros PDF sont indexes, pas tronques."""
     signature = _signature_cours()
@@ -69,25 +80,32 @@ def lire_cours():
     INDEX_LIVRES.clear()
     tout = ""
     for d in sorted((RACINE() / "cours").rglob("*.docx")):
-        try: tout += f"\n\n=== SOURCE: {d.name} ===\n" + lire_docx(d)[:6000]
+        try: tout += f"\n\n=== SOURCE: {d.name} ===\n" + lire_docx(d)[:60000]
         except Exception as e: tout += f"\n[SOURCE {d.name} illisible: {e}]"
+    cache = RACINE() / "cours" / "cache_index"
     for p in sorted((RACINE() / "cours").rglob("*.pdf")):
         try:
-            txt = lire_pdf(p)
-            if IndexLivre and len(txt) > SEUIL_LIVRE:
-                index = IndexLivre.charger(p, RACINE() / "cours" / "cache_index")
+            # Livre deja indexe : on relit le cache (0,2 s) au lieu d'extraire 844 pages a chaque demarrage.
+            if IndexLivre and index_livre.en_cache(p, cache):
+                index = IndexLivre.charger(p, cache)
                 if index.morceaux:
-                    INDEX_LIVRES.append(index)
-                    tout += (f"\n\n=== SOURCE: {p.name} ===\n"
-                             f"[Livre indexe : {index.pages_total} pages, {len(index.morceaux)} morceaux. "
-                             f"Recherche BM25 page par page ; seuls les meilleurs morceaux sont envoyes.]\n")
+                    tout += _bloc_livre(index, p.name)
+                    continue
+            pages = index_livre.extraire_pdf(p) if IndexLivre else None
+            txt = "\n".join(t for _, t in pages) if pages is not None else lire_pdf(p)
+            if pages is not None and len(txt.strip()) < 200:
+                txt = "[PDF scanne image : besoin OCR, ignore.]"
+            if IndexLivre and len(txt) > SEUIL_LIVRE:
+                index = IndexLivre.charger(p, cache, pages=pages)
+                if index.morceaux:
+                    tout += _bloc_livre(index, p.name)
                     continue
             tout += f"\n\n=== SOURCE: {p.name} ===\n" + txt[:6000]
         except Exception as e: tout += f"\n[SOURCE {p.name} illisible: {e}]"
     for t in sorted((RACINE() / "cours").glob("*.txt")) + sorted((RACINE() / "cours").glob("web_*.txt")):
         try: tout += f"\n\n=== SOURCE: {t.name} ===\n" + t.read_text(encoding="utf-8")[:4000]
         except Exception: pass
-    resultat = tout[:24000] if tout.strip() else "Aucune source locale."
+    resultat = tout[:120000] if tout.strip() else "Aucune source locale."
     _CACHE_COURS.update(sig=signature, txt=resultat, vocab=None)
     return resultat
 
@@ -149,8 +167,9 @@ def passages_utiles(question, gros_texte, max_car=3500):
         return _passages_notes(question, gros_texte, max_car)
     budget_livre = 1800 if max_car >= 2400 else max_car // 2
     base = _passages_notes(question, gros_texte, max_car - budget_livre, repli=False)
+    part = max(700, budget_livre // max(1, len(INDEX_LIVRES)))   # plusieurs livres : on partage le budget
     livre = "\n\n".join(
-        bloc for bloc in (idx.contexte(question, k=8, max_car=budget_livre) for idx in INDEX_LIVRES) if bloc)
+        bloc for bloc in (idx.contexte(question, k=8, max_car=part) for idx in INDEX_LIVRES) if bloc)
     if not base and not livre:
         return _passages_notes(question, gros_texte, max_car)
     if livre:
@@ -297,17 +316,27 @@ def garde_hors_matiere(question, corpus):
     return not any(site in sans_accents(question)
                    for site in ("react.dev", "mdn", "javascript.info", "vite", "tailwind"))
 
+def _sans_echo(texte):
+    """llama3.2 recopie parfois les entetes du contexte : on les retire, le contenu reste intact."""
+    garde = []
+    for ligne in (texte or "").splitlines():
+        nu = ligne.strip()
+        if nu.startswith("EXTRAITS DU LIVRE INDEXE") or nu.startswith("[=== SOURCE:") or nu == "CONTEXTE:":
+            continue
+        garde.append(ligne)
+    return "\n".join(garde).strip()
+
 def repondre_rag(q, cc):
     """Python apporte les passages, le LLM redige. Appele par l'outil OU en repli si le petit modele n'appelle rien."""
     ctx = passages_utiles(q, cc)
-    if len(ctx) < 800 or any(m in q.lower() for m in ["react.dev", "mdn", "site", "officiel", "documentation", "javascript.info", "vite", "tailwind"]):
+    if len(ctx) < 600 or any(m in q.lower() for m in ["react.dev", "mdn", "site", "officiel", "documentation", "javascript.info", "vite", "tailwind"]):
         ctx += enrichir_web(q, ctx)
     r = requests.post(URL, json={"model": MODEL, "messages": [
         {"role": "system", "content": SYSTEM},
         {"role": "user", "content": f"CONTEXTE:\n{ctx[:8000]}\n\nQUESTION: {q}"}],
         "stream": False, "options": {"temperature": 0.0, "num_ctx": 8192}}, timeout=120).json()["message"]
     srcs = extraire_sources(ctx)
-    return {"type": "cours", "txt": "[outil] lire_cours() [RAG+WEB]\n" + (r.get("content") or ""),
+    return {"type": "cours", "txt": "[outil] lire_cours() [RAG+WEB]\n" + _sans_echo(r.get("content") or ""),
             "sources": srcs or ["aucune (reponse memoire LLM - mefiance)"]}
 
 def run_agent_cours(q):
